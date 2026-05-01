@@ -17,51 +17,62 @@ export const ExtractionOverlay = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center gap-12">
-      <div className="text-center space-y-2">
+    <div className="fixed inset-0 bg-zinc-950/95 backdrop-blur-2xl z-50 flex flex-col items-center justify-center gap-20">
+      <div className="text-center space-y-6">
         <motion.h2 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-6xl font-black italic text-purple-500 tracking-tighter"
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 1.2, ease: "circOut" }}
+          className="text-8xl font-black italic text-zinc-100 tracking-tighter"
         >
           ARISE
         </motion.h2>
-        <p className="text-zinc-500 uppercase tracking-widest text-xs">Extraction in progress...</p>
+        <div className="flex items-center gap-6 justify-center">
+          <div className="w-16 h-[1px] bg-zinc-900" />
+          <p className="text-zinc-600 uppercase tracking-[0.5em] text-[10px] font-black italic">Extraction Protocol Active</p>
+          <div className="w-16 h-[1px] bg-zinc-900" />
+        </div>
       </div>
 
-      <div className="relative flex items-center justify-center w-64 h-64">
-        {/* Target Circle */}
-        <div className="absolute w-32 h-32 border-2 border-zinc-800 rounded-full" />
+      <div className="relative flex items-center justify-center w-96 h-96">
+        <div className="absolute inset-0 border border-zinc-900 rounded-full scale-125 opacity-20" />
+        <div className="absolute inset-0 border border-zinc-900 rounded-full scale-110 opacity-40" />
+        <div className="absolute w-32 h-32 border border-zinc-800 rounded-full" />
         
-        {/* Pulsing Circle */}
         <motion.button
           onClick={handleSyncClick}
-          className="absolute w-32 h-32 border-4 border-purple-500 rounded-full cursor-pointer focus:outline-none"
+          className="absolute w-32 h-32 border border-zinc-100/50 rounded-full cursor-pointer focus:outline-none z-10"
           animate={{
-            scale: [0.2, 2],
+            scale: [0, 3],
             opacity: [1, 0]
           }}
           transition={{
-            duration: 1.5,
+            duration: 2.5,
             repeat: Infinity,
-            ease: "linear"
+            ease: "easeOut"
           }}
         />
         
-        <div className="absolute text-[10px] uppercase font-bold text-zinc-500 pointer-events-none">Sync</div>
+        <div className="absolute text-[10px] uppercase font-black text-zinc-100 tracking-[0.3em] pointer-events-none">Sync</div>
       </div>
 
-      <div className="flex flex-col items-center gap-2">
-        <div className="flex gap-2">
-          {[...Array(3)].map((_, i) => (
-            <div 
-              key={i} 
-              className={`w-3 h-3 rounded-full ${i < state.attempts ? 'bg-purple-500' : 'bg-zinc-800'}`} 
-            />
-          ))}
+      <div className="flex flex-col items-center gap-10">
+        <div className="flex flex-col items-center gap-3">
+          <div className="flex gap-4">
+            {[...Array(3)].map((_, i) => (
+              <div 
+                key={i} 
+                className={`w-[2px] h-6 transition-colors duration-500 ${i < state.attempts ? 'bg-zinc-100' : 'bg-zinc-900'}`} 
+              />
+            ))}
+          </div>
+          <div className="text-[10px] text-zinc-700 uppercase tracking-[0.3em] font-black">Resonance Attempts</div>
         </div>
-        <div className="text-xs text-zinc-500 uppercase">Attempts Remaining</div>
-        <div className="text-2xl font-bold mt-4 tabular-nums">{state.timeLeft}s</div>
+        
+        <div className="flex flex-col items-center gap-1">
+          <div className="text-5xl font-black tabular-nums italic text-zinc-500">{state.timeLeft.toString().padStart(2, '0')}</div>
+          <div className="text-[9px] text-zinc-800 uppercase tracking-[0.4em] font-bold">Link Persistence</div>
+        </div>
       </div>
     </div>
   );
