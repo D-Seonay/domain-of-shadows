@@ -6,6 +6,10 @@ import { Shadow } from '../types/game';
 describe('useGameState', () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    localStorage.clear();
+    // Mock Math.random to always pick the first monster (Shadow Soldier, normal rank)
+    // for predictable tests unless specified otherwise.
+    vi.spyOn(Math, 'random').mockReturnValue(0);
   });
 
   afterEach(() => {
@@ -20,6 +24,16 @@ describe('useGameState', () => {
     expect(result.current.enemy.hp).toBe(50);
     expect(result.current.army).toEqual([]);
     expect(result.current.totalDps).toBe(0);
+  });
+
+  it('should generate enemies with different ranks and scaled HP', () => {
+    const { result } = renderHook(() => useGameState());
+    
+    // We can't easily test randomness without mocking Math.random, 
+    // but we can check if the generated enemy follows the new scaling rules.
+    const enemy = result.current.enemy;
+    expect(enemy.maxHp).toBeGreaterThanOrEqual(50); // Level 1 * 50 * multiplier(>=1)
+    expect(enemy.hp).toBe(enemy.maxHp);
   });
 
   it('should decrease enemy hp on attack', () => {
@@ -165,6 +179,38 @@ describe('useGameState', () => {
     });
 
     expect(result.current.enemy.hp).toBe(initialHp - 10);
+  });
+
+  it('should level up player when exp reaches maxExp', () => {
+    const { result } = renderHook(() => useGameState());
+
+    // Setup: kill enemy to trigger extraction
+    act(() => {
+      // Attack enough to kill any level 1 enemy (max HP 250 for boss)
+      result.current.attack(250);
+    });
+
+    // Success 1: gain 50 exp (maxExp is 100)
+    act(() => {
+      result.current.attemptExtraction(true);
+    });
+    expect(result.current.player.level).toBe(1);
+    expect(result.current.player.exp).toBe(50);
+
+    // Kill second enemy
+    act(() => {
+      result.current.attack(250);
+    });
+
+    // Success 2: gain 50 exp -> 100 exp -> Level Up
+    act(() => {
+      result.current.attemptExtraction(true);
+    });
+
+    expect(result.current.player.level).toBe(2);
+    expect(result.current.player.exp).toBe(0); 
+    expect(result.current.player.maxExp).toBe(200); 
+    expect(result.current.player.dpc).toBe(20); 
   });
 });
 

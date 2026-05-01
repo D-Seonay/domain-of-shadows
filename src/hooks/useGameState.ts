@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Enemy, Player, Shadow, ExtractionState } from '../types/game';
+import { Enemy, Player, Shadow, ExtractionState, Rank } from '../types/game';
 
 const INITIAL_PLAYER: Player = {
   level: 1,
@@ -17,20 +17,55 @@ const INITIAL_EXTRACTION: ExtractionState = {
   timeLeft: 10,
 };
 
-const createEnemy = (level: number): Enemy => ({
-  id: Math.random().toString(36).substr(2, 9),
-  name: 'Shadow Soldier',
-  level,
-  rank: 'normal',
-  hp: level * 50,
-  maxHp: level * 50,
-});
+const MONSTERS: { name: string; ranks: Rank[] }[] = [
+  { name: 'Shadow Soldier', ranks: ['normal'] },
+  { name: 'Iron Knight', ranks: ['normal', 'elite'] },
+  { name: 'Ice Elf', ranks: ['elite'] },
+  { name: 'High Orc', ranks: ['elite', 'boss'] },
+  { name: 'Cerberus', ranks: ['boss'] },
+  { name: 'Blood Red Igris', ranks: ['boss'] },
+];
+
+const createEnemy = (playerLevel: number): Enemy => {
+  const monster = MONSTERS[Math.floor(Math.random() * MONSTERS.length)];
+  const rank = monster.ranks[Math.floor(Math.random() * monster.ranks.length)];
+  
+  let multiplier = 1;
+  if (rank === 'elite') multiplier = 2;
+  if (rank === 'boss') multiplier = 5;
+
+  const maxHp = playerLevel * 50 * multiplier;
+  
+  return {
+    id: Math.random().toString(36).substr(2, 9),
+    name: monster.name,
+    level: playerLevel + (rank === 'boss' ? 2 : 0),
+    rank,
+    hp: maxHp,
+    maxHp: maxHp,
+  };
+};
 
 export const useGameState = () => {
-  const [player, setPlayer] = useState<Player>(INITIAL_PLAYER);
-  const [enemy, setEnemy] = useState<Enemy>(createEnemy(1));
-  const [army, setArmy] = useState<Shadow[]>(INITIAL_ARMY);
+  const [player, setPlayer] = useState<Player>(() => {
+    const saved = localStorage.getItem('shadow_player');
+    return saved ? JSON.parse(saved) : INITIAL_PLAYER;
+  });
+  const [enemy, setEnemy] = useState<Enemy>(() => createEnemy(player?.level || 1));
+  const [army, setArmy] = useState<Shadow[]>(() => {
+    const saved = localStorage.getItem('shadow_army');
+    return saved ? JSON.parse(saved) : INITIAL_ARMY;
+  });
   const [extraction, setExtraction] = useState<ExtractionState>(INITIAL_EXTRACTION);
+
+  // Persistence
+  useEffect(() => {
+    localStorage.setItem('shadow_player', JSON.stringify(player));
+  }, [player]);
+
+  useEffect(() => {
+    localStorage.setItem('shadow_army', JSON.stringify(army));
+  }, [army]);
 
   const totalDps = army.reduce((acc, shadow) => acc + shadow.dps, 0);
 
@@ -59,7 +94,6 @@ export const useGameState = () => {
         if (prev.timeLeft <= 1) {
           clearInterval(timer);
           // Auto-fail if time runs out
-          setEnemy(createEnemy(player.level));
           return INITIAL_EXTRACTION;
         }
         return { ...prev, timeLeft: prev.timeLeft - 1 };
@@ -70,26 +104,48 @@ export const useGameState = () => {
 
   const attemptExtraction = (success: boolean) => {
     if (success) {
+      const target = extraction.targetEnemy;
       addShadow({
         id: Math.random().toString(),
-        name: `Shadow ${extraction.targetEnemy?.name || 'Soldier'}`,
-        rank: extraction.targetEnemy?.rank || 'normal',
-        dps: (extraction.targetEnemy?.level || 1) * 5
+        name: `Shadow ${target?.name || 'Soldier'}`,
+        rank: target?.rank || 'normal',
+        dps: (target?.level || 1) * 5
       });
+      
+      setPlayer(p => {
+        let newExp = p.exp + 50;
+        let newLevel = p.level;
+        let newMaxExp = p.maxExp;
+        let newDpc = p.dpc;
+
+        if (newExp >= p.maxExp) {
+          newLevel += 1;
+          newExp = newExp - p.maxExp;
+          newMaxExp = newLevel * 100;
+          newDpc = newLevel * 10;
+        }
+
+        return { ...p, level: newLevel, exp: newExp, maxExp: newMaxExp, dpc: newDpc };
+      });
+
       setExtraction(INITIAL_EXTRACTION);
-      setEnemy(createEnemy(player.level));
-      setPlayer(p => ({ ...p, exp: p.exp + 50 }));
     } else {
       setExtraction(prev => {
         const nextAttempts = prev.attempts - 1;
         if (nextAttempts <= 0) {
-          setEnemy(createEnemy(player.level));
-          return INITIAL_EXTRACTION;
+          return { ...INITIAL_EXTRACTION, active: false };
         }
         return { ...prev, attempts: nextAttempts };
       });
     }
   };
+
+  // Respawn enemy when extraction ends or player levels up
+  useEffect(() => {
+    if (!extraction.active && enemy.hp === 0) {
+      setEnemy(createEnemy(player.level));
+    }
+  }, [extraction.active, enemy.hp, player.level]);
 
   // Passive DPS tick
   useEffect(() => {

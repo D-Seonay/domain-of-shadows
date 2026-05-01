@@ -1,5 +1,5 @@
 // src/types/game.ts
-export type Rank = 'normal' | 'elite' | 'knight' | 'general' | 'monarch';
+export type Rank = 'normal' | 'elite' | 'knight' | 'general' | 'monarch' | 'boss';
 
 export interface Shadow {
   id: string;
