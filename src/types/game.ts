@@ -25,8 +25,16 @@ export interface Player {
   dps: number; // Damage Per Second
 }
 
+export interface ExtractionState {
+  active: boolean;
+  attempts: number;
+  timeLeft: number;
+  targetEnemy?: Enemy;
+}
+
 export interface GameState {
   player: Player;
   enemy: Enemy;
   army: Shadow[];
+  extraction: ExtractionState;
 }

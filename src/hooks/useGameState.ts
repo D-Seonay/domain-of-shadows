@@ -1,6 +1,5 @@
-// src/hooks/useGameState.ts
 import { useState, useCallback, useEffect } from 'react';
-import { Enemy, Player, Shadow } from '../types/game';
+import { Enemy, Player, Shadow, ExtractionState } from '../types/game';
 
 const INITIAL_PLAYER: Player = {
   level: 1,
@@ -11,6 +10,12 @@ const INITIAL_PLAYER: Player = {
 };
 
 const INITIAL_ARMY: Shadow[] = [];
+
+const INITIAL_EXTRACTION: ExtractionState = {
+  active: false,
+  attempts: 3,
+  timeLeft: 10,
+};
 
 const createEnemy = (level: number): Enemy => ({
   id: Math.random().toString(36).substr(2, 9),
@@ -25,19 +30,66 @@ export const useGameState = () => {
   const [player, setPlayer] = useState<Player>(INITIAL_PLAYER);
   const [enemy, setEnemy] = useState<Enemy>(createEnemy(1));
   const [army, setArmy] = useState<Shadow[]>(INITIAL_ARMY);
+  const [extraction, setExtraction] = useState<ExtractionState>(INITIAL_EXTRACTION);
 
   const totalDps = army.reduce((acc, shadow) => acc + shadow.dps, 0);
 
+  const addShadow = useCallback((shadow: Shadow) => {
+    setArmy(prev => [...prev, shadow]);
+  }, []);
+
   const attack = useCallback((amount: number = player.dpc) => {
+    if (extraction.active) return; // Prevent attacking during extraction
+
     setEnemy(prev => {
       const newHp = Math.max(0, prev.hp - amount);
       if (newHp === 0) {
-        setPlayer(p => ({ ...p, exp: p.exp + 20 }));
-        return createEnemy(player.level);
+        setExtraction({ active: true, attempts: 3, timeLeft: 10, targetEnemy: { ...prev, hp: 0 } });
+        return { ...prev, hp: 0 }; // Keep the dead enemy displayed during extraction
       }
       return { ...prev, hp: newHp };
     });
-  }, [player.dpc, player.level]);
+  }, [player.dpc, extraction.active]);
+
+  // Extraction Timer
+  useEffect(() => {
+    if (!extraction.active) return;
+    const timer = setInterval(() => {
+      setExtraction(prev => {
+        if (prev.timeLeft <= 1) {
+          clearInterval(timer);
+          // Auto-fail if time runs out
+          setEnemy(createEnemy(player.level));
+          return INITIAL_EXTRACTION;
+        }
+        return { ...prev, timeLeft: prev.timeLeft - 1 };
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [extraction.active, player.level]);
+
+  const attemptExtraction = (success: boolean) => {
+    if (success) {
+      addShadow({
+        id: Math.random().toString(),
+        name: `Shadow ${extraction.targetEnemy?.name || 'Soldier'}`,
+        rank: extraction.targetEnemy?.rank || 'normal',
+        dps: (extraction.targetEnemy?.level || 1) * 5
+      });
+      setExtraction(INITIAL_EXTRACTION);
+      setEnemy(createEnemy(player.level));
+      setPlayer(p => ({ ...p, exp: p.exp + 50 }));
+    } else {
+      setExtraction(prev => {
+        const nextAttempts = prev.attempts - 1;
+        if (nextAttempts <= 0) {
+          setEnemy(createEnemy(player.level));
+          return INITIAL_EXTRACTION;
+        }
+        return { ...prev, attempts: nextAttempts };
+      });
+    }
+  };
 
   // Passive DPS tick
   useEffect(() => {
@@ -48,9 +100,8 @@ export const useGameState = () => {
     return () => clearInterval(interval);
   }, [totalDps, attack]);
 
-  const addShadow = (shadow: Shadow) => {
-    setArmy(prev => [...prev, shadow]);
+  return { 
+    player, enemy, army, extraction, 
+    attack, addShadow, attemptExtraction, totalDps 
   };
-
-  return { player, enemy, army, attack, addShadow, totalDps };
 };
