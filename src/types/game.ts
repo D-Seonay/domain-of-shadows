@@ -1,5 +1,12 @@
 // src/types/game.ts
-export type Rank = 'normal' | 'elite' | 'boss';
+export type Rank = 'normal' | 'elite' | 'knight' | 'general' | 'monarch';
+
+export interface Shadow {
+  id: string;
+  name: string;
+  rank: Rank;
+  dps: number;
+}
 
 export interface Enemy {
   id: string;
@@ -21,4 +28,5 @@ export interface Player {
 export interface GameState {
   player: Player;
   enemy: Enemy;
+  army: Shadow[];
 }
