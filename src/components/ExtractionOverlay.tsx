@@ -32,7 +32,7 @@ export const ExtractionOverlay = ({
           <p className="text-zinc-500 uppercase tracking-[0.5em] text-[10px] font-black italic">// EXTRACTION PROTOCOL ACTIVE</p>
           <div className="w-16 h-[1px] bg-zinc-900" />
         </div>
-        >>>>
+      </div>
 
       <div className="relative flex items-center justify-center w-96 h-96">
         <div className="absolute inset-0 border border-zinc-900 rounded-full scale-125 opacity-20" />
@@ -54,9 +54,9 @@ export const ExtractionOverlay = ({
         />
 
         <div className="absolute text-[10px] uppercase font-black text-zinc-500 tracking-[0.3em] pointer-events-none italic">// SYNC</div>
-        </div>
+      </div>
 
-        <div className="flex flex-col items-center gap-10">
+      <div className="flex flex-col items-center gap-10">
         <div className="flex flex-col items-center gap-3">
           <div className="flex gap-4">
             {[...Array(3)].map((_, i) => (
@@ -68,12 +68,12 @@ export const ExtractionOverlay = ({
           </div>
           <div className="text-[10px] text-zinc-500 uppercase tracking-[0.3em] font-black italic">// RESONANCE ATTEMPTS</div>
         </div>
-        >>>>
+        
         <div className="flex flex-col items-center gap-1">
           <div className="text-5xl font-black tabular-nums italic text-zinc-500">{state.timeLeft.toString().padStart(2, '0')}</div>
           <div className="text-[9px] text-zinc-500 uppercase tracking-[0.4em] font-bold italic">// LINK PERSISTENCE</div>
         </div>
-        >>>>
+      </div>
     </div>
   );
 };

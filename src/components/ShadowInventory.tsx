@@ -46,6 +46,6 @@ export const ShadowInventory = ({ army }: { army: Shadow[] }) => {
           // TOTAL ARMY STRENGTH: {(army.reduce((acc, s) => acc + s.dps, 0)).toLocaleString()}
         </div>
       </div>
-      >>>>
+    </div>
   );
 };

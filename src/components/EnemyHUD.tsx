@@ -1,4 +1,3 @@
-// src/components/EnemyHUD.tsx
 import { Enemy } from '../types/game';
 import { motion } from 'framer-motion';
 
@@ -14,7 +13,7 @@ export const EnemyHUD = ({ enemy }: { enemy: Enemy }) => {
         </div>
         <div className="flex-1 h-[1px] bg-gradient-to-l from-transparent to-zinc-800" />
       </div>
-      >>>>
+
       <div className="flex flex-col items-center gap-1">
         <h2 className="text-5xl font-black italic tracking-tighter uppercase text-zinc-100">{enemy.name}</h2>
         <div className="text-[10px] text-zinc-600 tracking-[0.3em] font-bold">CORE LEVEL: {enemy.level}</div>
@@ -36,7 +35,7 @@ export const EnemyHUD = ({ enemy }: { enemy: Enemy }) => {
           </span>
           <span>{Math.ceil(enemy.hp).toLocaleString()} / {enemy.maxHp.toLocaleString()} UNITS</span>
         </div>
-        >>>>
+      </div>
     </div>
   );
 };
