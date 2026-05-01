@@ -6,8 +6,8 @@ export const ShadowInventory = ({ army }: { army: Shadow[] }) => {
   return (
     <div className="flex flex-col gap-8 w-80 border-l border-zinc-900 p-10 bg-zinc-950">
       <div className="flex flex-col gap-1">
-        <div className="text-[10px] uppercase text-zinc-600 font-black tracking-[0.3em]">
-          Shadow Manifest
+        <div className="text-[10px] uppercase text-zinc-500 font-black tracking-[0.3em] italic">
+          // SHADOW MANIFEST
         </div>
         <div className="text-4xl font-black italic tracking-tighter">
           {army.length.toString().padStart(2, '0')}
@@ -16,8 +16,8 @@ export const ShadowInventory = ({ army }: { army: Shadow[] }) => {
 
       <div className="flex flex-col gap-4 overflow-y-auto pr-4 -mr-4 scrollbar-hide">
         {army.length === 0 && (
-          <div className="text-zinc-800 text-[10px] uppercase tracking-widest py-12 border-t border-zinc-900">
-            Scanning for viable essences...
+          <div className="text-zinc-500 text-[10px] uppercase tracking-widest py-12 border-t border-zinc-900 italic">
+            // SCANNING FOR VIABLE ESSENCES...
           </div>
         )}
         {army.map(shadow => (
@@ -36,16 +36,16 @@ export const ShadowInventory = ({ army }: { army: Shadow[] }) => {
                 </span>
               </div>
             </div>
-            <Ghost className="w-4 h-4 text-zinc-900 group-hover:text-zinc-700 transition-colors" />
+            <Ghost className="w-4 h-4 text-shadow group-hover:text-shadow/80 transition-colors" />
           </div>
         ))}
       </div>
 
       <div className="mt-auto border-t border-zinc-900 pt-6">
-        <div className="text-[9px] text-zinc-700 uppercase tracking-[0.2em] italic">
-          Total Army Strength: {(army.reduce((acc, s) => acc + s.dps, 0)).toLocaleString()}
+        <div className="text-[9px] text-zinc-500 uppercase tracking-[0.2em] italic">
+          // TOTAL ARMY STRENGTH: {(army.reduce((acc, s) => acc + s.dps, 0)).toLocaleString()}
         </div>
       </div>
-    </div>
+      >>>>
   );
 };
