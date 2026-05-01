@@ -38,10 +38,10 @@ const createEnemy = (playerLevel: number): Enemy => {
   const rank = monster.ranks[Math.floor(Math.random() * monster.ranks.length)];
   
   let multiplier = 1;
-  if (rank === 'elite') multiplier = 2;
-  if (rank === 'boss') multiplier = 5;
+  if (rank === 'elite') multiplier = 3;
+  if (rank === 'boss') multiplier = 10;
 
-  const maxHp = playerLevel * 50 * multiplier;
+  const maxHp = (playerLevel * 50 + (playerLevel ** 2) * 5) * multiplier;
   
   return {
     id: Math.random().toString(36).substr(2, 9),
@@ -98,7 +98,10 @@ export const useGameState = () => {
       if (prev.hp <= 0) return prev;
       const newHp = Math.max(0, prev.hp - finalDamage);
       if (newHp === 0) {
-        setExtraction({ active: true, attempts: 3, timeLeft: 10, targetEnemy: { ...prev, hp: 0 } });
+        // Only trigger extraction for non-normal enemies (Elite, Boss, etc.)
+        if (prev.rank !== 'normal') {
+          setExtraction({ active: true, attempts: 3, timeLeft: 10, targetEnemy: { ...prev, hp: 0 } });
+        }
         
         // Grant exp and mana on kill
         setPlayer(p => {
@@ -125,7 +128,7 @@ export const useGameState = () => {
           };
         });
 
-        return { ...prev, hp: 0 }; // Keep the dead enemy displayed during extraction
+        return { ...prev, hp: 0 }; // Keep the dead enemy displayed during extraction (or for immediate respawn)
       }
       return { ...prev, hp: newHp };
     });
@@ -141,7 +144,7 @@ export const useGameState = () => {
         if (prev.timeLeft <= 1) {
           clearInterval(timer);
           // Auto-fail if time runs out
-          return INITIAL_EXTRACTION;
+          return { ...INITIAL_EXTRACTION, active: false };
         }
         return { ...prev, timeLeft: prev.timeLeft - 1 };
       });
@@ -150,12 +153,13 @@ export const useGameState = () => {
   }, [extraction.active]);
 
   const attemptExtraction = useCallback(() => {
-    const success = Math.random() < (0.4 + upgrades.extractionChance);
+    // Lower base chance to 20%
+    const success = Math.random() < (0.2 + upgrades.extractionChance);
 
     if (success) {
       const target = extraction.targetEnemy;
       addShadow({
-        id: Math.random().toString(),
+        id: Math.random().toString(36).substr(2, 9),
         name: `Shadow ${target?.name || 'Soldier'}`,
         rank: target?.rank || 'normal',
         dps: (target?.level || 1) * 5

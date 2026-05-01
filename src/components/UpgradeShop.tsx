@@ -48,49 +48,60 @@ export const UpgradeShop = ({
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 20 }}
-      className="fixed inset-y-0 right-80 w-96 bg-zinc-950 border-l border-zinc-900 p-10 flex flex-col gap-10 z-40 backdrop-blur-xl bg-zinc-950/90"
+      className="fixed inset-y-0 right-80 w-[450px] bg-zinc-950 border-l border-zinc-900 p-12 flex flex-col gap-12 z-40 backdrop-blur-3xl bg-zinc-950/95 shadow-[ -20px_0_50px_rgba(0,0,0,0.5)]"
     >
       <div className="flex justify-between items-start">
-        <div className="flex flex-col gap-1">
-          <div className="text-[10px] uppercase text-zinc-500 font-black tracking-[0.3em] italic">
-            // ENHANCEMENT LAB
+        <div className="flex flex-col gap-2">
+          <div className="text-[10px] uppercase text-zinc-500 font-black tracking-[0.4em] italic">
+            // CORE AUGMENTATION
           </div>
-          <div className="text-3xl font-black italic tracking-tighter">PROTOCOLS</div>
+          <div className="text-4xl font-black italic tracking-tighter">ENHANCEMENT LAB</div>
         </div>
         <button 
           onClick={onClose}
-          className="text-[10px] text-zinc-600 hover:text-zinc-100 uppercase tracking-widest italic"
+          className="group flex items-center gap-2 text-[10px] text-zinc-600 hover:text-zinc-100 uppercase tracking-widest italic transition-colors"
         >
+          <span className="w-4 h-[1px] bg-zinc-800 group-hover:bg-zinc-100 transition-colors" />
           // CLOSE
         </button>
       </div>
 
-      <div className="flex flex-col gap-2 p-4 border border-zinc-900 bg-zinc-900/20">
-        <div className="text-[9px] text-zinc-500 uppercase tracking-widest italic">// AVAILABLE MANA</div>
-        <div className="text-2xl font-black italic text-shadow">{player.mana.toLocaleString()}</div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="flex flex-col gap-1 p-5 border border-zinc-900 bg-zinc-900/10">
+          <div className="text-[8px] text-zinc-600 uppercase tracking-widest italic">// MANA RESERVE</div>
+          <div className="text-3xl font-black italic text-shadow leading-none tabular-nums">{player.mana.toLocaleString()}</div>
+        </div>
+        <div className="flex flex-col gap-1 p-5 border border-zinc-900 bg-zinc-900/10">
+          <div className="text-[8px] text-zinc-600 uppercase tracking-widest italic">// SYSTEM LV</div>
+          <div className="text-3xl font-black italic text-zinc-100 leading-none tabular-nums">{player.level}</div>
+        </div>
       </div>
 
-      <div className="flex flex-col gap-6 overflow-y-auto pr-2">
+      <div className="flex flex-col gap-8 overflow-y-auto pr-4 -mr-4 scrollbar-hide">
         {shopItems.map(item => (
-          <div key={item.id} className="group flex flex-col gap-4 p-5 border border-zinc-900 bg-zinc-950 hover:border-zinc-700 transition-all duration-500">
-            <div className="flex justify-between items-start">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-zinc-900 text-shadow group-hover:bg-shadow group-hover:text-zinc-950 transition-colors duration-500">
-                  {item.icon}
+          <div key={item.id} className="group flex flex-col gap-5 p-6 border border-zinc-900 bg-zinc-950 hover:bg-zinc-900/20 transition-all duration-500 relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-100 transition-opacity">
+               <div className="text-[40px] text-zinc-800">{item.icon}</div>
+            </div>
+
+            <div className="flex justify-between items-start relative z-10">
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-3">
+                  <div className="text-shadow">
+                    {item.icon}
+                  </div>
+                  <span className="text-sm font-black italic uppercase tracking-tight">{item.name}</span>
                 </div>
-                <div className="flex flex-col">
-                  <span className="text-xs font-black italic uppercase tracking-tight">{item.name}</span>
-                  <span className="text-[10px] text-zinc-500 tabular-nums">{item.display} ACTIVE</span>
-                </div>
+                <span className="text-[10px] text-zinc-500 tabular-nums tracking-widest">{item.display} ACTIVE</span>
               </div>
             </div>
             
-            <p className="text-[10px] text-zinc-600 leading-relaxed italic">// {item.description}</p>
+            <p className="text-[11px] text-zinc-600 leading-relaxed italic relative z-10 border-l border-zinc-900 pl-4">// {item.description}</p>
             
             <button
               onClick={() => onBuy(item.id, Math.floor(item.cost), item.increment)}
               disabled={player.mana < item.cost}
-              className="mt-2 w-full py-3 border border-zinc-800 text-[10px] font-black uppercase tracking-[0.2em] italic hover:bg-zinc-100 hover:text-zinc-950 disabled:opacity-20 disabled:hover:bg-transparent disabled:hover:text-zinc-500 transition-all duration-300"
+              className="mt-2 w-full py-4 border border-zinc-800 text-[10px] font-black uppercase tracking-[0.3em] italic hover:bg-zinc-100 hover:text-zinc-950 disabled:opacity-20 disabled:hover:bg-transparent disabled:hover:text-zinc-500 transition-all duration-300 relative z-10"
             >
               INVEST {Math.floor(item.cost).toLocaleString()} MANA
             </button>

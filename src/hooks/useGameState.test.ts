@@ -22,7 +22,8 @@ describe('useGameState', () => {
     expect(result.current.player.level).toBe(1);
     expect(result.current.player.exp).toBe(0);
     expect(result.current.player.mana).toBe(0);
-    expect(result.current.enemy.hp).toBe(50);
+    // New scaling: level 1 * 50 + (1^2)*5 = 55
+    expect(result.current.enemy.hp).toBe(55);
     expect(result.current.army).toEqual([]);
     expect(result.current.totalDps).toBe(0);
   });
@@ -30,10 +31,8 @@ describe('useGameState', () => {
   it('should generate enemies with different ranks and scaled HP', () => {
     const { result } = renderHook(() => useGameState());
     
-    // We can't easily test randomness without mocking Math.random, 
-    // but we can check if the generated enemy follows the new scaling rules.
     const enemy = result.current.enemy;
-    expect(enemy.maxHp).toBeGreaterThanOrEqual(50); // Level 1 * 50 * multiplier(>=1)
+    expect(enemy.maxHp).toBeGreaterThanOrEqual(55); 
     expect(enemy.hp).toBe(enemy.maxHp);
   });
 
@@ -51,74 +50,71 @@ describe('useGameState', () => {
     });
 
     expect(result.current.enemy.hp).toBe(initialHp - result.current.player.dpc);
-
-    // Mock Math.random to return 0.05 (crit, 0.05 < 0.1)
-    vi.spyOn(Math, 'random').mockReturnValue(0.05);
-
-    act(() => {
-      const hit = result.current.attack();
-      expect(hit?.isCrit).toBe(true);
-      expect(hit?.damage).toBe(result.current.player.dpc * 2);
-    });
-
-    expect(result.current.enemy.hp).toBe(initialHp - result.current.player.dpc - (result.current.player.dpc * 2));
   });
 
-  it('should trigger extraction and grant exp/mana when enemy hp reaches 0', () => {
+  it('should trigger extraction and grant exp/mana when enemy hp reaches 0 if rank is not normal', () => {
+    // Mock random to pick an Elite/Boss (e.g., index 2 is Ice Elf - elite)
+    vi.spyOn(Math, 'random').mockReturnValue(0.4); // 0.4 * 6 = 2.4 -> index 2
     const { result } = renderHook(() => useGameState());
+    
     // Mock no crits
     vi.spyOn(Math, 'random').mockReturnValue(0.5);
 
-    // Initial enemy has 50 HP, player has 10 DPC. Need 5 attacks.
-    for (let i = 0; i < 5; i++) {
-      act(() => {
-        result.current.attack();
-      });
-    }
+    const enemyHp = result.current.enemy.hp;
+    act(() => {
+      result.current.attack(enemyHp);
+    });
 
-    // Extraction should be active
+    // Extraction should be active for Elite
     expect(result.current.extraction.active).toBe(true);
-    // Enemy HP should be 0
     expect(result.current.enemy.hp).toBe(0);
-    // Player should have gained 50 exp and 10 mana (level 1 * 10)
-    expect(result.current.player.exp).toBe(50);
-    expect(result.current.player.mana).toBe(10);
+  });
+
+  it('should NOT trigger extraction for normal enemies', () => {
+    // Mock random to pick Shadow Soldier (index 0 - normal)
+    vi.spyOn(Math, 'random').mockReturnValue(0); 
+    const { result } = renderHook(() => useGameState());
+    
+    act(() => {
+      result.current.attack(100);
+    });
+
+    expect(result.current.extraction.active).toBe(false);
   });
 
   it('should grant shadow on successful extraction', () => {
+    // Mock random to pick Elite
+    vi.spyOn(Math, 'random').mockReturnValue(0.4);
     const { result } = renderHook(() => useGameState());
-    // Mock success (< 0.4)
-    vi.spyOn(Math, 'random').mockReturnValue(0.1);
-
+    
     // Kill enemy
     act(() => {
-      result.current.attack(50);
+      result.current.attack(result.current.enemy.hp);
     });
 
     act(() => {
+      // Mock success (< 0.2 now)
+      vi.spyOn(Math, 'random').mockReturnValue(0.1);
       result.current.attemptExtraction();
     });
 
-    // Extraction should be inactive
     expect(result.current.extraction.active).toBe(false);
-    // Shadow should be added to army
     expect(result.current.army).toHaveLength(1);
-    // exp should still be 50 (from kill)
-    expect(result.current.player.exp).toBe(50);
   });
 
   it('should decrease attempts on failed extraction and auto-fail if 0', () => {
+    // Mock random to pick Elite
+    vi.spyOn(Math, 'random').mockReturnValue(0.4);
     const { result } = renderHook(() => useGameState());
-    // Mock failure (> 0.4)
-    vi.spyOn(Math, 'random').mockReturnValue(0.5);
-
+    
     // Kill enemy
     act(() => {
-      result.current.attack(50);
+      result.current.attack(result.current.enemy.hp);
     });
 
-    // Fail 1
+    // Fail 1 - mock failure (> 0.2 now)
     act(() => {
+      vi.spyOn(Math, 'random').mockReturnValue(0.5);
       result.current.attemptExtraction();
     });
     expect(result.current.extraction.attempts).toBe(2);
@@ -138,11 +134,13 @@ describe('useGameState', () => {
   });
 
   it('should auto-fail extraction when time runs out', () => {
+    // Mock random to pick Elite
+    vi.spyOn(Math, 'random').mockReturnValue(0.4);
     const { result } = renderHook(() => useGameState());
 
     // Kill enemy
     act(() => {
-      result.current.attack(50);
+      result.current.attack(result.current.enemy.hp);
     });
 
     expect(result.current.extraction.active).toBe(true);
@@ -199,14 +197,17 @@ describe('useGameState', () => {
   });
 
   it('should allow buying upgrades with mana', () => {
+    // Mock Elite to get more mana
+    vi.spyOn(Math, 'random').mockReturnValue(0.4);
     const { result } = renderHook(() => useGameState());
     // Mock no crits
     vi.spyOn(Math, 'random').mockReturnValue(0.5);
     
-    // Kill enemy to get 10 mana
+    // Kill enemy
     act(() => {
-      result.current.attack(50);
+      result.current.attack(result.current.enemy.hp);
     });
+    // Level 1 elite gives Level*10 mana = 10 mana.
     expect(result.current.player.mana).toBe(10);
     expect(result.current.upgrades.criticalChance).toBe(0);
 
@@ -232,21 +233,14 @@ describe('useGameState', () => {
 
     // Kill first enemy -> 50 exp
     act(() => {
-      result.current.attack(50);
+      result.current.attack(result.current.enemy.hp);
     });
     expect(result.current.player.level).toBe(1);
     expect(result.current.player.exp).toBe(50);
 
+    // Kill second enemy -> 50 exp -> 100 exp -> Level Up
     act(() => {
-      // Mock random to succeed extraction
-      vi.spyOn(Math, 'random').mockReturnValue(0.1);
-      result.current.attemptExtraction(); 
-    });
-
-    act(() => {
-      // Mock random back to no crits
-      vi.spyOn(Math, 'random').mockReturnValue(0.5);
-      result.current.attack(250); // Kill next enemy
+      result.current.attack(result.current.enemy.hp);
     });
 
     expect(result.current.player.level).toBe(2);

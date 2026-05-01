@@ -82,15 +82,25 @@ export default function App() {
             </div>
           </div>
 
-          <button 
-            onClick={() => setShowShop(!showShop)}
-            className={`mt-4 flex items-center gap-3 px-4 py-2 border transition-all duration-500 ${showShop ? 'bg-zinc-100 text-zinc-950 border-zinc-100' : 'bg-transparent text-zinc-100 border-zinc-800 hover:border-zinc-500'}`}
-          >
-            <FlaskConical className={`w-4 h-4 ${showShop ? '' : 'text-shadow'}`} />
-            <span className="text-[10px] font-black uppercase tracking-[0.2em] italic">
-              {showShop ? '// CLOSE LAB' : '// ENHANCEMENT LAB'}
-            </span>
-          </button>
+          <div className="relative mt-6">
+            {player.mana >= 100 && !showShop && (
+              <motion.div 
+                layoutId="shop-ping"
+                className="absolute -top-1 -right-1 w-3 h-3 bg-shadow rounded-full z-10"
+                animate={{ scale: [1, 1.5, 1], opacity: [1, 0.5, 1] }}
+                transition={{ duration: 2, repeat: Infinity }}
+              />
+            )}
+            <button 
+              onClick={() => setShowShop(!showShop)}
+              className={`flex items-center gap-3 px-6 py-3 border transition-all duration-500 group ${showShop ? 'bg-zinc-100 text-zinc-950 border-zinc-100' : 'bg-transparent text-zinc-100 border-zinc-800 hover:border-shadow'}`}
+            >
+              <FlaskConical className={`w-4 h-4 transition-transform duration-500 group-hover:rotate-12 ${showShop ? '' : 'text-shadow'}`} />
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] italic">
+                {showShop ? '// CLOSE LAB' : '// ENHANCEMENT LAB'}
+              </span>
+            </button>
+          </div>
         </div>
 
         <div className="w-full max-w-2xl flex flex-col items-center gap-16">
