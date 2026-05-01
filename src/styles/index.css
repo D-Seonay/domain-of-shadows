@@ -1,1 +1,15 @@
+/* src/styles/index.css */
 @import "tailwindcss";
+
+@theme {
+  --color-zinc-950: #09090b;
+  --color-zinc-900: #18181b;
+  --color-zinc-100: #f4f4f5;
+  --color-shadow: #a855f7;
+}
+
+:root {
+  background-color: var(--color-zinc-950);
+  color: var(--color-zinc-100);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
