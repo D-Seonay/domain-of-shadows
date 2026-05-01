@@ -3,10 +3,14 @@ import { useGameState } from './hooks/useGameState';
 import { EnemyHUD } from './components/EnemyHUD';
 import { ShadowInventory } from './components/ShadowInventory';
 import { DebugTools } from './components/DebugTools';
+import { ExtractionOverlay } from './components/ExtractionOverlay';
 import { Sword } from 'lucide-react';
 
 export default function App() {
-  const { player, enemy, army, attack, addShadow, totalDps } = useGameState();
+  const { 
+    player, enemy, army, extraction, 
+    attack, addShadow, attemptExtraction, totalDps 
+  } = useGameState();
 
   return (
     <div className="min-h-screen flex bg-zinc-950 text-zinc-100 overflow-hidden font-mono">
@@ -33,6 +37,8 @@ export default function App() {
         </button>
 
         <DebugTools onAddShadow={addShadow} />
+
+        <ExtractionOverlay state={extraction} onAttempt={attemptExtraction} />
       </main>
 
       {/* Sidebar */}
