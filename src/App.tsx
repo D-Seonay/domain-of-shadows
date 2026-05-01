@@ -12,21 +12,31 @@ interface DamagePopup {
   value: number;
   x: number;
   y: number;
+  isCrit: boolean;
 }
 
 export default function App() {
   const { player, enemy, army, extraction, attack, addShadow, attemptExtraction, totalDps } = useGameState();
   const [popups, setPopups] = useState<DamagePopup[]>([]);
+  const [isShaking, setIsShaking] = useState(false);
 
   const handleAttack = useCallback((amount?: number, x?: number, y?: number) => {
-    attack(amount);
+    const result = attack(amount);
+    const isCrit = result?.isCrit || false;
+    const finalDamage = result?.damage || amount || player.dpc;
     
+    if (isCrit) {
+      setIsShaking(true);
+      setTimeout(() => setIsShaking(false), 200);
+    }
+
     const id = Date.now();
     const newPopup: DamagePopup = {
       id,
-      value: amount || player.dpc,
+      value: finalDamage,
       x: x || window.innerWidth / 2,
-      y: y || window.innerHeight / 2
+      y: y || window.innerHeight / 2,
+      isCrit
     };
     
     setPopups(prev => [...prev, newPopup]);
@@ -36,7 +46,7 @@ export default function App() {
   }, [attack, player.dpc]);
 
   return (
-    <div className="min-h-screen flex bg-zinc-950 text-zinc-100 overflow-hidden font-mono selection:bg-shadow/30">
+    <div className={`min-h-screen flex bg-zinc-950 text-zinc-100 overflow-hidden font-mono selection:bg-shadow/30 ${isShaking ? 'animate-shake' : ''}`}>
       {/* Main Content */}
       <main className="flex-1 p-12 flex flex-col items-center justify-center gap-20 relative border-r border-zinc-900/50">
         
@@ -92,13 +102,15 @@ export default function App() {
               {popups.map(popup => (
                 <motion.div
                   key={popup.id}
-                  initial={{ opacity: 1, y: popup.y - 100, x: popup.x - 20 }}
-                  animate={{ opacity: 0, y: popup.y - 250 }}
+                  initial={{ opacity: 1, y: popup.y - 100, x: popup.x - 20, scale: popup.isCrit ? 1.5 : 1 }}
+                  animate={{ opacity: 0, y: popup.y - 250, scale: popup.isCrit ? 2 : 1.2 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.8, ease: "easeOut" }}
-                  className="fixed pointer-events-none text-2xl font-black italic text-zinc-100 z-50 mix-blend-difference"
+                  className={`fixed pointer-events-none font-black italic z-50 mix-blend-difference ${
+                    popup.isCrit ? 'text-shadow text-4xl' : 'text-zinc-100 text-2xl'
+                  }`}
                 >
-                  -{Math.floor(popup.value)}
+                  -{Math.floor(popup.value)}{popup.isCrit ? '!' : ''}
                 </motion.div>
               ))}
             </AnimatePresence>
