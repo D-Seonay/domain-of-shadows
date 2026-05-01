@@ -42,17 +42,17 @@ export default function App() {
       <main className="flex-1 p-12 flex flex-col items-center justify-center gap-24 relative">
         {/* Left Info HUD */}
         <div className="absolute top-12 left-12 border-l border-zinc-800 pl-4 py-2">
-           <div className="text-[10px] text-zinc-500 uppercase tracking-[0.3em] mb-1">Total Army DPS</div>
-           <div className="text-3xl font-black italic text-zinc-100 tabular-nums">
+           <div className="text-[10px] text-zinc-500 uppercase tracking-[0.3em] mb-1 italic">// TOTAL ARMY DPS</div>
+           <div className="text-3xl font-black italic text-shadow tabular-nums">
              {totalDps.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
            </div>
         </div>
 
         {/* Right Player HUD */}
         <div className="fixed top-12 right-12 text-right flex flex-col items-end gap-3 border-r border-zinc-800 pr-4 py-2">
-          <div className="text-[10px] text-zinc-500 uppercase tracking-[0.3em]">System Status</div>
+          <div className="text-[10px] text-zinc-500 uppercase tracking-[0.3em] italic">// SYSTEM STATUS</div>
           <div className="text-5xl font-black italic leading-none tracking-tighter">LV. {player.level}</div>
-          
+        >>>>
           <div className="flex flex-col items-end gap-1">
             <div className="w-48 bg-zinc-900/50 h-[2px] relative overflow-hidden">
               <motion.div 
@@ -62,12 +62,12 @@ export default function App() {
                 transition={{ duration: 0.8, ease: "circOut" }}
               />
             </div>
-            <div className="text-[9px] text-zinc-600 uppercase tracking-widest tabular-nums">
-              EXP {player.exp} / {player.maxExp}
+            <div className="text-[9px] text-zinc-500 uppercase tracking-widest tabular-nums italic">
+              // EXP {player.exp} / {player.maxExp}
             </div>
-          </div>
-        </div>
-
+            </div>
+            </div>
+            >>>>
         <div className="w-full max-w-2xl flex flex-col items-center gap-16">
           <EnemyHUD enemy={enemy} />
 
