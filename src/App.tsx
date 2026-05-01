@@ -1,8 +1,9 @@
 import { useGameState } from './hooks/useGameState';
 import { EnemyHUD } from './components/EnemyHUD';
-import { Sword } from 'lucide-react';
+import { Sword, FlaskConical } from 'lucide-react';
 import { ExtractionOverlay } from './components/ExtractionOverlay';
 import { ShadowInventory } from './components/ShadowInventory';
+import { UpgradeShop } from './components/UpgradeShop';
 import { DebugTools } from './components/DebugTools';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useCallback } from 'react';
@@ -10,40 +11,44 @@ import { useState, useCallback } from 'react';
 interface DamagePopup {
   id: number;
   value: number;
+  isCrit: boolean;
   x: number;
   y: number;
-  isCrit: boolean;
 }
 
 export default function App() {
-  const { player, enemy, army, extraction, attack, addShadow, attemptExtraction, totalDps } = useGameState();
+  const { 
+    player, enemy, army, extraction, upgrades,
+    attack, addShadow, attemptExtraction, buyUpgrade, mergeShadows, totalDps 
+  } = useGameState();
+  
   const [popups, setPopups] = useState<DamagePopup[]>([]);
   const [isShaking, setIsShaking] = useState(false);
+  const [showShop, setShowShop] = useState(false);
 
   const handleAttack = useCallback((amount?: number, x?: number, y?: number) => {
     const result = attack(amount);
-    const isCrit = result?.isCrit || false;
-    const finalDamage = result?.damage || amount || player.dpc;
+    if (!result) return;
     
-    if (isCrit) {
-      setIsShaking(true);
-      setTimeout(() => setIsShaking(false), 200);
-    }
-
     const id = Date.now();
     const newPopup: DamagePopup = {
       id,
-      value: finalDamage,
+      value: result.damage,
+      isCrit: result.isCrit,
       x: x || window.innerWidth / 2,
-      y: y || window.innerHeight / 2,
-      isCrit
+      y: y || window.innerHeight / 2
     };
+
+    if (result.isCrit) {
+      setIsShaking(true);
+      setTimeout(() => setIsShaking(false), 200);
+    }
     
     setPopups(prev => [...prev, newPopup]);
     setTimeout(() => {
       setPopups(prev => prev.filter(p => p.id !== id));
     }, 800);
-  }, [attack, player.dpc]);
+  }, [attack]);
 
   return (
     <div className={`min-h-screen flex bg-zinc-950 text-zinc-100 overflow-hidden font-mono selection:bg-shadow/30 ${isShaking ? 'animate-shake' : ''}`}>
@@ -76,6 +81,16 @@ export default function App() {
               // EXP {player.exp} / {player.maxExp}
             </div>
           </div>
+
+          <button 
+            onClick={() => setShowShop(!showShop)}
+            className={`mt-4 flex items-center gap-3 px-4 py-2 border transition-all duration-500 ${showShop ? 'bg-zinc-100 text-zinc-950 border-zinc-100' : 'bg-transparent text-zinc-100 border-zinc-800 hover:border-zinc-500'}`}
+          >
+            <FlaskConical className={`w-4 h-4 ${showShop ? '' : 'text-shadow'}`} />
+            <span className="text-[10px] font-black uppercase tracking-[0.2em] italic">
+              {showShop ? '// CLOSE LAB' : '// ENHANCEMENT LAB'}
+            </span>
+          </button>
         </div>
 
         <div className="w-full max-w-2xl flex flex-col items-center gap-16">
@@ -102,13 +117,11 @@ export default function App() {
               {popups.map(popup => (
                 <motion.div
                   key={popup.id}
-                  initial={{ opacity: 1, y: popup.y - 100, x: popup.x - 20, scale: popup.isCrit ? 1.5 : 1 }}
-                  animate={{ opacity: 0, y: popup.y - 250, scale: popup.isCrit ? 2 : 1.2 }}
+                  initial={{ opacity: 1, scale: popup.isCrit ? 1.5 : 1, y: popup.y - 100, x: popup.x - 20 }}
+                  animate={{ opacity: 0, scale: popup.isCrit ? 2 : 1, y: popup.y - 250 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.8, ease: "easeOut" }}
-                  className={`fixed pointer-events-none font-black italic z-50 mix-blend-difference ${
-                    popup.isCrit ? 'text-shadow text-4xl' : 'text-zinc-100 text-2xl'
-                  }`}
+                  className={`fixed pointer-events-none font-black italic z-50 mix-blend-difference ${popup.isCrit ? 'text-4xl text-shadow' : 'text-2xl text-zinc-100'}`}
                 >
                   -{Math.floor(popup.value)}{popup.isCrit ? '!' : ''}
                 </motion.div>
@@ -122,10 +135,21 @@ export default function App() {
         </div>
 
         <ExtractionOverlay state={extraction} onAttempt={attemptExtraction} />
+        
+        <AnimatePresence>
+          {showShop && (
+            <UpgradeShop 
+              player={player} 
+              upgrades={upgrades} 
+              onBuy={buyUpgrade} 
+              onClose={() => setShowShop(false)} 
+            />
+          )}
+        </AnimatePresence>
       </main>
 
       {/* Sidebar */}
-      <ShadowInventory army={army} />
+      <ShadowInventory army={army} onMerge={mergeShadows} />
     </div>
   );
 }

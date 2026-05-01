@@ -183,6 +183,29 @@ export const useGameState = () => {
     });
   }, []);
 
+  const mergeShadows = useCallback((name: string, currentRank: Rank) => {
+    setArmy(prev => {
+      const identical = prev.filter(s => s.name === name && s.rank === currentRank);
+      if (identical.length < 3) return prev;
+
+      const rankOrder: Rank[] = ['normal', 'elite', 'knight', 'general', 'monarch'];
+      const nextRankIndex = rankOrder.indexOf(currentRank) + 1;
+      if (nextRankIndex >= rankOrder.length) return prev;
+
+      const nextRank = rankOrder[nextRankIndex];
+      const others = prev.filter(s => !identical.slice(0, 3).includes(s));
+      
+      const mergedShadow: Shadow = {
+        id: Math.random().toString(36).substr(2, 9),
+        name,
+        rank: nextRank,
+        dps: identical[0].dps * 2.5
+      };
+
+      return [...others, mergedShadow];
+    });
+  }, []);
+
   // Respawn enemy when extraction ends or player levels up
   useEffect(() => {
     if (!extraction.active && enemy.hp === 0) {
@@ -201,6 +224,6 @@ export const useGameState = () => {
 
   return { 
     player, enemy, army, extraction, upgrades,
-    attack, addShadow, attemptExtraction, buyUpgrade, totalDps 
+    attack, addShadow, attemptExtraction, buyUpgrade, mergeShadows, totalDps 
   };
 };
