@@ -6,14 +6,12 @@ export const ExtractionOverlay = ({
   onAttempt 
 }: { 
   state: ExtractionState; 
-  onAttempt: (success: boolean) => void 
+  onAttempt: () => void 
 }) => {
   if (!state.active) return null;
 
   const handleSyncClick = () => {
-    // For this prototype, success is based on RNG (60% chance)
-    const isSuccess = Math.random() > 0.4;
-    onAttempt(isSuccess);
+    onAttempt();
   };
 
   return (

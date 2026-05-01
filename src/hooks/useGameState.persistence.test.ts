@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useGameState } from './useGameState';
-import { Player, Shadow } from '../types/game';
+import { Player, Shadow, Upgrades } from '../types/game';
 
 describe('useGameState Persistence', () => {
   const localStorageMock = (() => {
@@ -35,19 +35,27 @@ describe('useGameState Persistence', () => {
       level: 5,
       exp: 150,
       maxExp: 500,
+      mana: 100,
       dpc: 50,
       dps: 0,
+    };
+    const savedUpgrades: Upgrades = {
+      extractionChance: 0.1,
+      criticalChance: 0.05,
+      criticalMultiplier: 0.5,
     };
     const savedArmy: Shadow[] = [
       { id: '1', name: 'Shadow Soldier', rank: 'normal', dps: 5 },
     ];
 
     localStorage.setItem('shadow_player', JSON.stringify(savedPlayer));
+    localStorage.setItem('shadow_upgrades', JSON.stringify(savedUpgrades));
     localStorage.setItem('shadow_army', JSON.stringify(savedArmy));
 
     const { result } = renderHook(() => useGameState());
 
     expect(result.current.player).toEqual(savedPlayer);
+    expect(result.current.upgrades).toEqual(savedUpgrades);
     expect(result.current.army).toEqual(savedArmy);
     expect(result.current.totalDps).toBe(5);
   });
@@ -69,11 +77,9 @@ describe('useGameState Persistence', () => {
     act(() => {
       result.current.attack(1000); // Kill current enemy
     });
-    act(() => {
-      result.current.attemptExtraction(true);
-    });
 
     const savedPlayer = JSON.parse(localStorage.getItem('shadow_player') || '{}');
     expect(savedPlayer.exp).toBe(50);
+    expect(savedPlayer.mana).toBe(10);
   });
 });

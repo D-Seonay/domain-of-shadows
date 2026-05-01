@@ -1,12 +1,19 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Enemy, Player, Shadow, ExtractionState, Rank } from '../types/game';
+import { Enemy, Player, Shadow, ExtractionState, Upgrades, Rank } from '../types/game';
 
 const INITIAL_PLAYER: Player = {
   level: 1,
   exp: 0,
   maxExp: 100,
+  mana: 0,
   dpc: 10,
   dps: 0,
+};
+
+const INITIAL_UPGRADES: Upgrades = {
+  extractionChance: 0,
+  criticalChance: 0,
+  criticalMultiplier: 0,
 };
 
 const INITIAL_ARMY: Shadow[] = [];
@@ -51,6 +58,10 @@ export const useGameState = () => {
     const saved = localStorage.getItem('shadow_player');
     return saved ? JSON.parse(saved) : INITIAL_PLAYER;
   });
+  const [upgrades, setUpgrades] = useState<Upgrades>(() => {
+    const saved = localStorage.getItem('shadow_upgrades');
+    return saved ? JSON.parse(saved) : INITIAL_UPGRADES;
+  });
   const [enemy, setEnemy] = useState<Enemy>(() => createEnemy(player?.level || 1));
   const [army, setArmy] = useState<Shadow[]>(() => {
     const saved = localStorage.getItem('shadow_army');
@@ -64,6 +75,10 @@ export const useGameState = () => {
   }, [player]);
 
   useEffect(() => {
+    localStorage.setItem('shadow_upgrades', JSON.stringify(upgrades));
+  }, [upgrades]);
+
+  useEffect(() => {
     localStorage.setItem('shadow_army', JSON.stringify(army));
   }, [army]);
 
@@ -73,18 +88,50 @@ export const useGameState = () => {
     setArmy(prev => [...prev, shadow]);
   }, []);
 
-  const attack = useCallback((amount: number = player.dpc) => {
+  const attack = useCallback((amount: number = player.dpc): { damage: number; isCrit: boolean } | void => {
     if (extraction.active) return; // Prevent attacking during extraction
 
+    const isCrit = Math.random() < (0.1 + upgrades.criticalChance);
+    const finalDamage = isCrit ? Math.floor(amount * (2.0 + upgrades.criticalMultiplier)) : amount;
+
     setEnemy(prev => {
-      const newHp = Math.max(0, prev.hp - amount);
+      if (prev.hp <= 0) return prev;
+      const newHp = Math.max(0, prev.hp - finalDamage);
       if (newHp === 0) {
         setExtraction({ active: true, attempts: 3, timeLeft: 10, targetEnemy: { ...prev, hp: 0 } });
+        
+        // Grant exp and mana on kill
+        setPlayer(p => {
+          let newExp = p.exp + 50;
+          let newLevel = p.level;
+          let newMaxExp = p.maxExp;
+          let newDpc = p.dpc;
+          const manaGain = prev.level * 10;
+
+          if (newExp >= p.maxExp) {
+            newLevel += 1;
+            newExp = newExp - p.maxExp;
+            newMaxExp = newLevel * 100;
+            newDpc = newLevel * 10;
+          }
+
+          return { 
+            ...p, 
+            level: newLevel, 
+            exp: newExp, 
+            maxExp: newMaxExp, 
+            dpc: newDpc,
+            mana: p.mana + manaGain 
+          };
+        });
+
         return { ...prev, hp: 0 }; // Keep the dead enemy displayed during extraction
       }
       return { ...prev, hp: newHp };
     });
-  }, [player.dpc, extraction.active]);
+
+    return { damage: finalDamage, isCrit };
+  }, [player.dpc, extraction.active, upgrades.criticalChance, upgrades.criticalMultiplier]);
 
   // Extraction Timer
   useEffect(() => {
@@ -100,9 +147,11 @@ export const useGameState = () => {
       });
     }, 1000);
     return () => clearInterval(timer);
-  }, [extraction.active, player.level]);
+  }, [extraction.active]);
 
-  const attemptExtraction = (success: boolean) => {
+  const attemptExtraction = useCallback(() => {
+    const success = Math.random() < (0.4 + upgrades.extractionChance);
+
     if (success) {
       const target = extraction.targetEnemy;
       addShadow({
@@ -112,22 +161,6 @@ export const useGameState = () => {
         dps: (target?.level || 1) * 5
       });
       
-      setPlayer(p => {
-        let newExp = p.exp + 50;
-        let newLevel = p.level;
-        let newMaxExp = p.maxExp;
-        let newDpc = p.dpc;
-
-        if (newExp >= p.maxExp) {
-          newLevel += 1;
-          newExp = newExp - p.maxExp;
-          newMaxExp = newLevel * 100;
-          newDpc = newLevel * 10;
-        }
-
-        return { ...p, level: newLevel, exp: newExp, maxExp: newMaxExp, dpc: newDpc };
-      });
-
       setExtraction(INITIAL_EXTRACTION);
     } else {
       setExtraction(prev => {
@@ -138,7 +171,17 @@ export const useGameState = () => {
         return { ...prev, attempts: nextAttempts };
       });
     }
-  };
+  }, [extraction.targetEnemy, addShadow, upgrades.extractionChance]);
+
+  const buyUpgrade = useCallback((type: keyof Upgrades, cost: number, increment: number) => {
+    setPlayer(p => {
+      if (p.mana >= cost) {
+        setUpgrades(u => ({ ...u, [type]: u[type] + increment }));
+        return { ...p, mana: p.mana - cost };
+      }
+      return p;
+    });
+  }, []);
 
   // Respawn enemy when extraction ends or player levels up
   useEffect(() => {
@@ -157,7 +200,7 @@ export const useGameState = () => {
   }, [totalDps, attack]);
 
   return { 
-    player, enemy, army, extraction, 
-    attack, addShadow, attemptExtraction, totalDps 
+    player, enemy, army, extraction, upgrades,
+    attack, addShadow, attemptExtraction, buyUpgrade, totalDps 
   };
 };

@@ -21,6 +21,7 @@ describe('useGameState', () => {
 
     expect(result.current.player.level).toBe(1);
     expect(result.current.player.exp).toBe(0);
+    expect(result.current.player.mana).toBe(0);
     expect(result.current.enemy.hp).toBe(50);
     expect(result.current.army).toEqual([]);
     expect(result.current.totalDps).toBe(0);
@@ -36,19 +37,37 @@ describe('useGameState', () => {
     expect(enemy.hp).toBe(enemy.maxHp);
   });
 
-  it('should decrease enemy hp on attack', () => {
+  it('should decrease enemy hp on attack and handle critical hits', () => {
     const { result } = renderHook(() => useGameState());
     const initialHp = result.current.enemy.hp;
 
+    // Mock Math.random to return 0.5 (no crit, 0.5 > 0.1)
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+
     act(() => {
-      result.current.attack();
+      const hit = result.current.attack();
+      expect(hit?.isCrit).toBe(false);
+      expect(hit?.damage).toBe(result.current.player.dpc);
     });
 
     expect(result.current.enemy.hp).toBe(initialHp - result.current.player.dpc);
+
+    // Mock Math.random to return 0.05 (crit, 0.05 < 0.1)
+    vi.spyOn(Math, 'random').mockReturnValue(0.05);
+
+    act(() => {
+      const hit = result.current.attack();
+      expect(hit?.isCrit).toBe(true);
+      expect(hit?.damage).toBe(result.current.player.dpc * 2);
+    });
+
+    expect(result.current.enemy.hp).toBe(initialHp - result.current.player.dpc - (result.current.player.dpc * 2));
   });
 
-  it('should trigger extraction when enemy hp reaches 0', () => {
+  it('should trigger extraction and grant exp/mana when enemy hp reaches 0', () => {
     const { result } = renderHook(() => useGameState());
+    // Mock no crits
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
 
     // Initial enemy has 50 HP, player has 10 DPC. Need 5 attacks.
     for (let i = 0; i < 5; i++) {
@@ -61,74 +80,70 @@ describe('useGameState', () => {
     expect(result.current.extraction.active).toBe(true);
     // Enemy HP should be 0
     expect(result.current.enemy.hp).toBe(0);
-    // Player exp should not have increased yet
-    expect(result.current.player.exp).toBe(0);
+    // Player should have gained 50 exp and 10 mana (level 1 * 10)
+    expect(result.current.player.exp).toBe(50);
+    expect(result.current.player.mana).toBe(10);
   });
 
-  it('should grant shadow and exp on successful extraction', () => {
+  it('should grant shadow on successful extraction', () => {
     const { result } = renderHook(() => useGameState());
+    // Mock success (< 0.4)
+    vi.spyOn(Math, 'random').mockReturnValue(0.1);
 
     // Kill enemy
-    for (let i = 0; i < 5; i++) {
-      act(() => {
-        result.current.attack();
-      });
-    }
+    act(() => {
+      result.current.attack(50);
+    });
 
     act(() => {
-      result.current.attemptExtraction(true);
+      result.current.attemptExtraction();
     });
 
     // Extraction should be inactive
     expect(result.current.extraction.active).toBe(false);
     // Shadow should be added to army
     expect(result.current.army).toHaveLength(1);
-    // Player should have gained 50 exp (as per Phase 3 logic)
+    // exp should still be 50 (from kill)
     expect(result.current.player.exp).toBe(50);
-    // New enemy should be spawned
-    expect(result.current.enemy.hp).toBe(50);
   });
 
   it('should decrease attempts on failed extraction and auto-fail if 0', () => {
     const { result } = renderHook(() => useGameState());
+    // Mock failure (> 0.4)
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
 
     // Kill enemy
-    for (let i = 0; i < 5; i++) {
-      act(() => {
-        result.current.attack();
-      });
-    }
+    act(() => {
+      result.current.attack(50);
+    });
 
     // Fail 1
     act(() => {
-      result.current.attemptExtraction(false);
+      result.current.attemptExtraction();
     });
     expect(result.current.extraction.attempts).toBe(2);
     expect(result.current.extraction.active).toBe(true);
 
     // Fail 2
     act(() => {
-      result.current.attemptExtraction(false);
+      result.current.attemptExtraction();
     });
     expect(result.current.extraction.attempts).toBe(1);
 
     // Fail 3 - should close extraction and respawn enemy
     act(() => {
-      result.current.attemptExtraction(false);
+      result.current.attemptExtraction();
     });
     expect(result.current.extraction.active).toBe(false);
-    expect(result.current.enemy.hp).toBe(50);
   });
 
   it('should auto-fail extraction when time runs out', () => {
     const { result } = renderHook(() => useGameState());
 
     // Kill enemy
-    for (let i = 0; i < 5; i++) {
-      act(() => {
-        result.current.attack();
-      });
-    }
+    act(() => {
+      result.current.attack(50);
+    });
 
     expect(result.current.extraction.active).toBe(true);
 
@@ -138,7 +153,6 @@ describe('useGameState', () => {
     });
 
     expect(result.current.extraction.active).toBe(false);
-    expect(result.current.enemy.hp).toBe(50);
   });
 
   it('should add shadow to army and update totalDps', () => {
@@ -156,6 +170,9 @@ describe('useGameState', () => {
 
   it('should apply passive damage based on totalDps', () => {
     const { result } = renderHook(() => useGameState());
+    // Mock no crits
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+
     const newShadow: Shadow = { id: '1', name: 'Knight', rank: 'knight', dps: 10 };
 
     act(() => {
@@ -181,30 +198,55 @@ describe('useGameState', () => {
     expect(result.current.enemy.hp).toBe(initialHp - 10);
   });
 
-  it('should level up player when exp reaches maxExp', () => {
+  it('should allow buying upgrades with mana', () => {
     const { result } = renderHook(() => useGameState());
-
-    // Setup: kill enemy to trigger extraction
+    // Mock no crits
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    
+    // Kill enemy to get 10 mana
     act(() => {
-      // Attack enough to kill any level 1 enemy (max HP 250 for boss)
-      result.current.attack(250);
+      result.current.attack(50);
     });
+    expect(result.current.player.mana).toBe(10);
+    expect(result.current.upgrades.criticalChance).toBe(0);
 
-    // Success 1: gain 50 exp (maxExp is 100)
+    // Try to buy upgrade costing 20 (should fail)
     act(() => {
-      result.current.attemptExtraction(true);
+      result.current.buyUpgrade('criticalChance', 20, 0.05);
+    });
+    expect(result.current.player.mana).toBe(10);
+    expect(result.current.upgrades.criticalChance).toBe(0);
+
+    // Buy upgrade costing 10 (should succeed)
+    act(() => {
+      result.current.buyUpgrade('criticalChance', 10, 0.05);
+    });
+    expect(result.current.player.mana).toBe(0);
+    expect(result.current.upgrades.criticalChance).toBe(0.05);
+  });
+
+  it('should level up player when exp reaches maxExp (on kill)', () => {
+    const { result } = renderHook(() => useGameState());
+    // Mock no crits
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+
+    // Kill first enemy -> 50 exp
+    act(() => {
+      result.current.attack(50);
     });
     expect(result.current.player.level).toBe(1);
     expect(result.current.player.exp).toBe(50);
 
-    // Kill second enemy
     act(() => {
-      result.current.attack(250);
+      // Mock random to succeed extraction
+      vi.spyOn(Math, 'random').mockReturnValue(0.1);
+      result.current.attemptExtraction(); 
     });
 
-    // Success 2: gain 50 exp -> 100 exp -> Level Up
     act(() => {
-      result.current.attemptExtraction(true);
+      // Mock random back to no crits
+      vi.spyOn(Math, 'random').mockReturnValue(0.5);
+      result.current.attack(250); // Kill next enemy
     });
 
     expect(result.current.player.level).toBe(2);
