@@ -231,16 +231,16 @@ describe('useGameState', () => {
     // Mock no crits
     vi.spyOn(Math, 'random').mockReturnValue(0.5);
 
-    // Kill first enemy -> 50 exp
+    // Kill first enemy (55 HP) -> 50 exp
     act(() => {
-      result.current.attack(result.current.enemy.hp);
+      result.current.attack(100);
     });
     expect(result.current.player.level).toBe(1);
     expect(result.current.player.exp).toBe(50);
 
-    // Kill second enemy -> 50 exp -> 100 exp -> Level Up
+    // Kill second enemy (55 HP) -> 50 exp -> 100 exp -> Level Up
     act(() => {
-      result.current.attack(result.current.enemy.hp);
+      result.current.attack(100);
     });
 
     expect(result.current.player.level).toBe(2);

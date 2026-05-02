@@ -1,13 +1,15 @@
 import { useGameState } from './hooks/useGameState';
 import { EnemyHUD } from './components/EnemyHUD';
-import { Sword, FlaskConical } from 'lucide-react';
+import { Sword, FlaskConical, Archive } from 'lucide-react';
 import { ExtractionOverlay } from './components/ExtractionOverlay';
 import { ShadowInventory } from './components/ShadowInventory';
 import { UpgradeShop } from './components/UpgradeShop';
 import { DebugTools } from './components/DebugTools';
 import { NotificationSystem, Notification } from './components/NotificationSystem';
+import { MetaOverlay } from './components/MetaOverlay';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useCallback, useEffect } from 'react';
+import { ExtractionMode } from './types/game';
 
 interface DamagePopup {
   id: number;
@@ -19,13 +21,14 @@ interface DamagePopup {
 
 export default function App() {
   const { 
-    player, enemy, army, extraction, upgrades,
-    attack, addShadow, attemptExtraction, buyUpgrade, mergeShadows, totalDps 
+    player, enemy, army, extraction, extractionMode, upgrades, codex, achievements,
+    setExtractionMode, attack, addShadow, attemptExtraction, buyUpgrade, mergeShadows, totalDps, rebirth 
   } = useGameState();
-  
+
   const [popups, setPopups] = useState<DamagePopup[]>([]);
   const [isShaking, setIsShaking] = useState(false);
   const [showShop, setShowShop] = useState(false);
+  const [showMeta, setShowMeta] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
   const addNotification = useCallback((message: string, type: Notification['type']) => {
@@ -133,6 +136,16 @@ export default function App() {
                 {showShop ? '// CLOSE LAB' : '// ENHANCEMENT LAB'}
               </span>
             </button>
+
+            <button 
+              onClick={() => setShowMeta(true)}
+              className="flex items-center gap-3 px-6 py-3 border bg-transparent text-zinc-100 border-zinc-800 hover:border-shadow transition-all duration-500 group"
+            >
+              <Archive className="w-4 h-4 transition-transform duration-500 group-hover:-translate-y-1 text-shadow" />
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] italic">
+                // SYSTEM ARCHIVE
+              </span>
+            </button>
           </div>
         </div>
 
@@ -206,6 +219,22 @@ export default function App() {
               upgrades={upgrades} 
               onBuy={buyUpgrade} 
               onClose={() => setShowShop(false)} 
+            />
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {showMeta && (
+            <MetaOverlay 
+              player={player}
+              codex={codex}
+              achievements={achievements}
+              onRebirth={() => {
+                rebirth();
+                setShowMeta(false);
+                addNotification("System Reset: Power Transcendence active.", "success");
+              }}
+              onClose={() => setShowMeta(false)}
             />
           )}
         </AnimatePresence>

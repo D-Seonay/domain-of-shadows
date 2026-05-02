@@ -25,12 +25,33 @@ export interface Player {
   mana: number;
   dpc: number; // Damage Per Click
   dps: number; // Damage Per Second
+  prestigePoints: number;
+  rebirths: number;
 }
 
 export interface Upgrades {
-  extractionChance: number; // base 0.4 + this
-  criticalChance: number; // base 0.1 + this
-  criticalMultiplier: number; // base 2.0 + this
+  extractionChance: number;
+  criticalChance: number;
+  criticalMultiplier: number;
+  prestigeMultiplier: number;
+}
+
+export interface CodexEntry {
+  name: string;
+  count: number;
+  rank: Rank;
+  unlocked: boolean;
+}
+
+export interface Achievement {
+  id: string;
+  title: string;
+  description: string;
+  requirement: number;
+  current: number;
+  completed: boolean;
+  rewardType: 'mana' | 'prestige';
+  rewardAmount: number;
 }
 
 export interface ExtractionState {
@@ -47,4 +68,6 @@ export interface GameState {
   extraction: ExtractionState;
   extractionMode: ExtractionMode;
   upgrades: Upgrades;
+  codex: CodexEntry[];
+  achievements: Achievement[];
 }
