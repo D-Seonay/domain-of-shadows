@@ -177,6 +177,26 @@ export default function App() {
           <DebugTools onAddShadow={addShadow} />
         </div>
 
+        {/* Extraction Mode Selector */}
+        <div className="fixed bottom-12 right-12 flex flex-col items-end gap-3 border-r border-zinc-800 pr-4 py-2">
+          <div className="text-[10px] text-zinc-500 uppercase tracking-[0.3em] italic">// EXTRACTION PROTOCOL</div>
+          <div className="flex gap-2">
+            {(['manual', 'auto', 'none'] as ExtractionMode[]).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => setExtractionMode(mode)}
+                className={`px-4 py-2 text-[10px] font-black uppercase tracking-[0.2em] italic border transition-all duration-500 ${
+                  extractionMode === mode 
+                    ? 'bg-zinc-100 text-zinc-950 border-zinc-100' 
+                    : 'bg-transparent text-zinc-500 border-zinc-900 hover:border-zinc-700'
+                }`}
+              >
+                {mode === 'manual' ? '// MANUAL' : mode === 'auto' ? '// AUTO' : '// NONE'}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <ExtractionOverlay state={extraction} onAttempt={attemptExtraction} />
         
         <AnimatePresence>

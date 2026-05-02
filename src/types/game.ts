@@ -1,5 +1,6 @@
 // src/types/game.ts
 export type Rank = 'normal' | 'elite' | 'knight' | 'general' | 'monarch' | 'boss';
+export type ExtractionMode = 'manual' | 'auto' | 'none';
 
 export interface Shadow {
   id: string;
@@ -44,5 +45,6 @@ export interface GameState {
   enemy: Enemy;
   army: Shadow[];
   extraction: ExtractionState;
+  extractionMode: ExtractionMode;
   upgrades: Upgrades;
 }

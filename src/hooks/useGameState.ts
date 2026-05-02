@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Enemy, Player, Shadow, ExtractionState, Upgrades, Rank } from '../types/game';
+import { Enemy, Player, Shadow, ExtractionState, Upgrades, Rank, ExtractionMode } from '../types/game';
 
 const INITIAL_PLAYER: Player = {
   level: 1,
@@ -68,6 +68,10 @@ export const useGameState = () => {
     return saved ? JSON.parse(saved) : INITIAL_ARMY;
   });
   const [extraction, setExtraction] = useState<ExtractionState>(INITIAL_EXTRACTION);
+  const [extractionMode, setExtractionMode] = useState<ExtractionMode>(() => {
+    const saved = localStorage.getItem('shadow_extraction_mode');
+    return (saved as ExtractionMode) || 'manual';
+  });
 
   // Persistence
   useEffect(() => {
@@ -82,11 +86,42 @@ export const useGameState = () => {
     localStorage.setItem('shadow_army', JSON.stringify(army));
   }, [army]);
 
+  useEffect(() => {
+    localStorage.setItem('shadow_extraction_mode', extractionMode);
+  }, [extractionMode]);
+
   const totalDps = army.reduce((acc, shadow) => acc + shadow.dps, 0);
 
   const addShadow = useCallback((shadow: Shadow) => {
     setArmy(prev => [...prev, shadow]);
   }, []);
+
+  const attemptExtraction = useCallback((target?: Enemy) => {
+    // Lower base chance to 20%
+    const success = Math.random() < (0.2 + upgrades.extractionChance);
+
+    if (success) {
+      const actualTarget = target || extraction.targetEnemy;
+      addShadow({
+        id: Math.random().toString(36).substr(2, 9),
+        name: `Shadow ${actualTarget?.name || 'Soldier'}`,
+        rank: actualTarget?.rank || 'normal',
+        dps: (actualTarget?.level || 1) * 5
+      });
+      
+      setExtraction(INITIAL_EXTRACTION);
+      return true;
+    } else {
+      setExtraction(prev => {
+        const nextAttempts = prev.attempts - 1;
+        if (nextAttempts <= 0) {
+          return { ...INITIAL_EXTRACTION, active: false };
+        }
+        return { ...prev, attempts: nextAttempts };
+      });
+      return false;
+    }
+  }, [extraction.targetEnemy, addShadow, upgrades.extractionChance]);
 
   const attack = useCallback((amount: number = player.dpc): { damage: number; isCrit: boolean } | void => {
     if (extraction.active) return; // Prevent attacking during extraction
@@ -98,9 +133,22 @@ export const useGameState = () => {
       if (prev.hp <= 0) return prev;
       const newHp = Math.max(0, prev.hp - finalDamage);
       if (newHp === 0) {
-        // Only trigger extraction for non-normal enemies (Elite, Boss, etc.)
+        // Handle Extraction Logic based on Mode
         if (prev.rank !== 'normal') {
-          setExtraction({ active: true, attempts: 3, timeLeft: 10, targetEnemy: { ...prev, hp: 0 } });
+          if (extractionMode === 'manual') {
+            setExtraction({ active: true, attempts: 3, timeLeft: 10, targetEnemy: { ...prev, hp: 0 } });
+          } else if (extractionMode === 'auto') {
+            // Auto-extract has much lower base chance (10%)
+            const autoSuccess = Math.random() < (0.1 + upgrades.extractionChance);
+            if (autoSuccess) {
+              addShadow({
+                id: Math.random().toString(36).substr(2, 9),
+                name: `Shadow ${prev.name}`,
+                rank: prev.rank,
+                dps: prev.level * 5
+              });
+            }
+          }
         }
         
         // Grant exp and mana on kill
@@ -134,7 +182,7 @@ export const useGameState = () => {
     });
 
     return { damage: finalDamage, isCrit };
-  }, [player.dpc, extraction.active, upgrades.criticalChance, upgrades.criticalMultiplier]);
+  }, [player.dpc, extraction.active, upgrades.criticalChance, upgrades.criticalMultiplier, extractionMode, upgrades.extractionChance, addShadow]);
 
   // Extraction Timer
   useEffect(() => {
@@ -151,31 +199,6 @@ export const useGameState = () => {
     }, 1000);
     return () => clearInterval(timer);
   }, [extraction.active]);
-
-  const attemptExtraction = useCallback(() => {
-    // Lower base chance to 20%
-    const success = Math.random() < (0.2 + upgrades.extractionChance);
-
-    if (success) {
-      const target = extraction.targetEnemy;
-      addShadow({
-        id: Math.random().toString(36).substr(2, 9),
-        name: `Shadow ${target?.name || 'Soldier'}`,
-        rank: target?.rank || 'normal',
-        dps: (target?.level || 1) * 5
-      });
-      
-      setExtraction(INITIAL_EXTRACTION);
-    } else {
-      setExtraction(prev => {
-        const nextAttempts = prev.attempts - 1;
-        if (nextAttempts <= 0) {
-          return { ...INITIAL_EXTRACTION, active: false };
-        }
-        return { ...prev, attempts: nextAttempts };
-      });
-    }
-  }, [extraction.targetEnemy, addShadow, upgrades.extractionChance]);
 
   const buyUpgrade = useCallback((type: keyof Upgrades, cost: number, increment: number) => {
     setPlayer(p => {
@@ -227,7 +250,7 @@ export const useGameState = () => {
   }, [totalDps, attack]);
 
   return { 
-    player, enemy, army, extraction, upgrades,
-    attack, addShadow, attemptExtraction, buyUpgrade, mergeShadows, totalDps 
+    player, enemy, army, extraction, extractionMode, upgrades,
+    setExtractionMode, attack, addShadow, attemptExtraction, buyUpgrade, mergeShadows, totalDps 
   };
 };
