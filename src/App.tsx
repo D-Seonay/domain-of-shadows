@@ -82,10 +82,13 @@ export default function App() {
 
   return (
     <div className={`min-h-screen flex bg-zinc-950 text-zinc-100 overflow-hidden font-mono selection:bg-shadow/30 ${isShaking ? 'animate-shake' : ''}`}>
+      {/* Left Sidebar - Shadow Inventory */}
+      <ShadowInventory army={army} onMerge={handleMerge} />
+
       {/* Main Content */}
-      <main className="flex-1 p-12 flex flex-col items-center justify-center gap-20 relative border-r border-zinc-900/50">
+      <main className="flex-1 p-12 flex flex-col items-center justify-center gap-20 relative border-x border-zinc-900/50">
         
-        {/* Left Status HUD */}
+        {/* Top-Center Army Stats HUD */}
         <div className="absolute top-12 left-12 flex flex-col gap-1 border-l border-zinc-800 pl-4 py-2">
           <div className="text-[10px] text-zinc-500 uppercase tracking-[0.3em] italic">// TOTAL ARMY DPS</div>
           <div className="text-3xl font-black italic text-shadow leading-none tracking-tighter">
@@ -94,7 +97,7 @@ export default function App() {
         </div>
 
         {/* Right Player HUD */}
-        <div className="fixed top-12 right-12 text-right flex flex-col items-end gap-3 border-r border-zinc-800 pr-4 py-2">
+        <div className="fixed top-12 right-12 text-right flex flex-col items-end gap-3 border-r border-zinc-800 pr-4 py-2 z-30">
           <div className="text-[10px] text-zinc-500 uppercase tracking-[0.3em] italic">// SYSTEM STATUS</div>
           <div className="text-5xl font-black italic leading-none tracking-tighter">LV. {player.level}</div>
           
@@ -170,7 +173,7 @@ export default function App() {
           </div>
         </div>
 
-        <div className="fixed bottom-12 left-12">
+        <div className="fixed bottom-12 left-[400px]">
           <DebugTools onAddShadow={addShadow} />
         </div>
 
@@ -189,9 +192,6 @@ export default function App() {
 
         <NotificationSystem notifications={notifications} />
       </main>
-
-      {/* Sidebar */}
-      <ShadowInventory army={army} onMerge={handleMerge} />
     </div>
   );
 }
