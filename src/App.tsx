@@ -5,8 +5,9 @@ import { ExtractionOverlay } from './components/ExtractionOverlay';
 import { ShadowInventory } from './components/ShadowInventory';
 import { UpgradeShop } from './components/UpgradeShop';
 import { DebugTools } from './components/DebugTools';
+import { NotificationSystem, Notification } from './components/NotificationSystem';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 
 interface DamagePopup {
   id: number;
@@ -25,6 +26,35 @@ export default function App() {
   const [popups, setPopups] = useState<DamagePopup[]>([]);
   const [isShaking, setIsShaking] = useState(false);
   const [showShop, setShowShop] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+
+  const addNotification = useCallback((message: string, type: Notification['type']) => {
+    const id = Math.random().toString(36).substr(2, 9);
+    setNotifications(prev => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setNotifications(prev => prev.filter(n => n.id !== id));
+    }, 3000);
+  }, []);
+
+  // Watch for army length changes to notify new shadows
+  const [lastArmyLength, setLastArmyLength] = useState(army.length);
+  useEffect(() => {
+    if (army.length > lastArmyLength) {
+      const newShadow = army[army.length - 1];
+      // Distinguish between extraction and merge
+      if (notifications.some(n => n.type === 'merge')) {
+        // Handled by merge call
+      } else {
+        addNotification(`${newShadow.name} has joined the army.`, 'success');
+      }
+    }
+    setLastArmyLength(army.length);
+  }, [army, lastArmyLength, addNotification, notifications]);
+
+  const handleMerge = useCallback((name: string, rank: any) => {
+    mergeShadows(name, rank);
+    addNotification(`Resonance successful: ${name} evolved.`, 'merge');
+  }, [mergeShadows, addNotification]);
 
   const handleAttack = useCallback((amount?: number, x?: number, y?: number) => {
     const result = attack(amount);
@@ -156,10 +186,12 @@ export default function App() {
             />
           )}
         </AnimatePresence>
+
+        <NotificationSystem notifications={notifications} />
       </main>
 
       {/* Sidebar */}
-      <ShadowInventory army={army} onMerge={mergeShadows} />
+      <ShadowInventory army={army} onMerge={handleMerge} />
     </div>
   );
 }
