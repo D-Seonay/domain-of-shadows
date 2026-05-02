@@ -48,9 +48,9 @@ export const UpgradeShop = ({
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 20 }}
-      className="fixed inset-y-0 right-80 w-[450px] bg-zinc-950 border-l border-zinc-900 p-12 flex flex-col gap-12 z-40 backdrop-blur-3xl bg-zinc-950/95 shadow-[ -20px_0_50px_rgba(0,0,0,0.5)]"
+      className="fixed inset-y-0 right-0 w-[450px] bg-zinc-950 border-l border-zinc-900 p-12 flex flex-col gap-12 z-40 backdrop-blur-3xl bg-zinc-950/95 shadow-[ -20px_0_50px_rgba(0,0,0,0.5)] h-screen overflow-hidden"
     >
-      <div className="flex justify-between items-start">
+      <div className="flex justify-between items-start shrink-0">
         <div className="flex flex-col gap-2">
           <div className="text-[10px] uppercase text-zinc-500 font-black tracking-[0.4em] italic">
             // CORE AUGMENTATION
@@ -66,7 +66,7 @@ export const UpgradeShop = ({
         </button>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-4 shrink-0">
         <div className="flex flex-col gap-1 p-5 border border-zinc-900 bg-zinc-900/10">
           <div className="text-[8px] text-zinc-600 uppercase tracking-widest italic">// MANA RESERVE</div>
           <div className="text-3xl font-black italic text-shadow leading-none tabular-nums">{player.mana.toLocaleString()}</div>
@@ -77,7 +77,7 @@ export const UpgradeShop = ({
         </div>
       </div>
 
-      <div className="flex flex-col gap-8 overflow-y-auto pr-4 -mr-4 scrollbar-hide">
+      <div className="flex flex-col gap-8 overflow-y-auto pr-4 -mr-4 flex-1">
         {shopItems.map(item => (
           <div key={item.id} className="group flex flex-col gap-5 p-6 border border-zinc-900 bg-zinc-950 hover:bg-zinc-900/20 transition-all duration-500 relative overflow-hidden">
             <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-100 transition-opacity">

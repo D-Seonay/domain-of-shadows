@@ -24,8 +24,8 @@ export const ShadowInventory = ({
   }, [army]);
 
   return (
-    <div className="flex flex-col gap-10 w-96 border-l border-zinc-900 p-12 bg-zinc-950 z-10 shadow-[-10px_0_30px_rgba(0,0,0,0.3)]">
-      <div className="flex flex-col gap-2 border-b border-zinc-900 pb-8">
+    <div className="flex flex-col gap-10 w-96 border-l border-zinc-900 p-12 bg-zinc-950 z-10 shadow-[-10px_0_30px_rgba(0,0,0,0.3)] h-screen overflow-hidden">
+      <div className="flex flex-col gap-2 border-b border-zinc-900 pb-8 shrink-0">
         <div className="text-[11px] uppercase text-zinc-500 font-black tracking-[0.4em] italic">
           // SHADOW MANIFEST
         </div>
@@ -37,7 +37,7 @@ export const ShadowInventory = ({
         </div>
       </div>
 
-      <div className="flex flex-col gap-6 overflow-y-auto pr-4 -mr-4 scrollbar-hide">
+      <div className="flex flex-col gap-6 overflow-y-auto pr-4 -mr-4 flex-1">
         {groupedArmy.length === 0 && (
           <div className="text-zinc-600 text-[10px] uppercase tracking-[0.3em] py-20 text-center italic border border-dashed border-zinc-900">
             // SCANNING FOR VIABLE ESSENCES...

@@ -12,6 +12,39 @@
   background-color: var(--color-zinc-950);
   color: var(--color-zinc-100);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  overflow: hidden;
+}
+
+body {
+  overflow: hidden;
+  height: 100vh;
+  width: 100vw;
+}
+
+/* Custom Scrollbar for inner lists */
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-zinc-900);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-shadow);
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 @keyframes shake {
