@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Enemy, Player, Shadow, ExtractionState, Upgrades, Rank, ExtractionMode, CodexEntry, Achievement } from '../types/game';
+import { Enemy, Player, Shadow, ExtractionState, Upgrades, Rank, ExtractionMode, CodexEntry, Achievement, DungeonState, ShadowClass } from '../types/game';
 
 const INITIAL_PLAYER: Player = {
   level: 1,
@@ -12,11 +12,19 @@ const INITIAL_PLAYER: Player = {
   rebirths: 0,
 };
 
+const SHADOW_CLASSES: ShadowClass[] = ['infantry', 'tank', 'mage', 'assassin'];
+
 const INITIAL_UPGRADES: Upgrades = {
   extractionChance: 0,
   criticalChance: 0,
   criticalMultiplier: 0,
   prestigeMultiplier: 1.0,
+};
+
+const INITIAL_DUNGEON: DungeonState = {
+  currentFloor: 1,
+  enemiesDefeated: 0,
+  enemiesPerFloor: 5,
 };
 
 const INITIAL_ARMY: Shadow[] = [];
@@ -42,15 +50,19 @@ const MONSTERS: { name: string; ranks: Rank[] }[] = [
   { name: 'Blood Red Igris', ranks: ['boss'] },
 ];
 
-const createEnemy = (playerLevel: number): Enemy => {
-  const monster = MONSTERS[Math.floor(Math.random() * MONSTERS.length)];
-  const rank = monster.ranks[Math.floor(Math.random() * monster.ranks.length)];
+const createEnemy = (playerLevel: number, forceBoss: boolean = false): Enemy => {
+  const monsterList = forceBoss 
+    ? MONSTERS.filter(m => m.ranks.includes('boss'))
+    : MONSTERS;
+  
+  const monster = monsterList[Math.floor(Math.random() * monsterList.length)];
+  const rank = forceBoss ? 'boss' : monster.ranks[Math.floor(Math.random() * monster.ranks.length)];
   
   let multiplier = 1;
   if (rank === 'elite') multiplier = 5; 
   if (rank === 'boss') multiplier = 25; 
 
-  const maxHp = (200 + playerLevel * 100 + Math.pow(playerLevel, 2.5)) * multiplier;
+  const maxHp = (100 + playerLevel * 50 + Math.pow(playerLevel, 2.2)) * multiplier;
   
   return {
     id: Math.random().toString(36).substr(2, 9),
@@ -71,6 +83,10 @@ export const useGameState = () => {
     const saved = localStorage.getItem('shadow_upgrades');
     return saved ? JSON.parse(saved) : INITIAL_UPGRADES;
   });
+  const [dungeon, setDungeon] = useState<DungeonState>(() => {
+    const saved = localStorage.getItem('shadow_dungeon');
+    return saved ? JSON.parse(saved) : INITIAL_DUNGEON;
+  });
   const [enemy, setEnemy] = useState<Enemy>(() => createEnemy(player?.level || 1));
   const [army, setArmy] = useState<Shadow[]>(() => {
     const saved = localStorage.getItem('shadow_army');
@@ -90,22 +106,32 @@ export const useGameState = () => {
     return saved ? JSON.parse(saved) : INITIAL_ACHIEVEMENTS;
   });
 
-  // Throttled Persistence
+  // Persistence
   useEffect(() => {
-    const saveInterval = setInterval(() => {
+    const saveToLocalStorage = () => {
       localStorage.setItem('shadow_player', JSON.stringify(player));
       localStorage.setItem('shadow_upgrades', JSON.stringify(upgrades));
       localStorage.setItem('shadow_army', JSON.stringify(army));
       localStorage.setItem('shadow_extraction_mode', extractionMode);
       localStorage.setItem('shadow_codex', JSON.stringify(codex));
       localStorage.setItem('shadow_achievements', JSON.stringify(achievements));
-    }, 2000);
+      localStorage.setItem('shadow_dungeon', JSON.stringify(dungeon));
+    };
+    saveToLocalStorage();
+  }, [player, upgrades, army, extractionMode, codex, achievements, dungeon]);
 
-    return () => clearInterval(saveInterval);
-  }, [player, upgrades, army, extractionMode, codex, achievements]);
+  const classCounts = army.reduce((acc, s) => {
+    acc[s.class] = (acc[s.class] || 0) + 1;
+    return acc;
+  }, {} as Record<ShadowClass, number>);
+
+  const tanksCount = classCounts['tank'] || 0;
+  const magesCount = classCounts['mage'] || 0;
+  const assassinsCount = classCounts['assassin'] || 0;
 
   const codexDpsBonus = codex.reduce((acc, entry) => acc + (entry.count * 0.01), 1);
-  const totalDps = army.reduce((acc, shadow) => acc + shadow.dps, 0) * upgrades.prestigeMultiplier * codexDpsBonus;
+  const baseDps = army.reduce((acc, shadow) => acc + shadow.dps, 0);
+  const totalDps = baseDps * (1 + magesCount * 0.1) * upgrades.prestigeMultiplier * codexDpsBonus;
 
   const updateAchievement = useCallback((id: string, amount: number, absolute = false) => {
     setAchievements(prev => prev.map(ach => {
@@ -131,11 +157,13 @@ export const useGameState = () => {
     const success = Math.random() < (0.2 + upgrades.extractionChance);
     if (success) {
       const actualTarget = target || extraction.targetEnemy;
+      const randomClass = SHADOW_CLASSES[Math.floor(Math.random() * SHADOW_CLASSES.length)];
       addShadow({
         id: Math.random().toString(36).substr(2, 9),
         name: `Shadow ${actualTarget?.name || 'Soldier'}`,
         rank: actualTarget?.rank || 'normal',
-        dps: (actualTarget?.level || 1) * 5
+        dps: (actualTarget?.level || 1) * 5,
+        class: randomClass
       });
       setExtraction(INITIAL_EXTRACTION);
       return true;
@@ -149,16 +177,15 @@ export const useGameState = () => {
     }
   }, [extraction.targetEnemy, addShadow, upgrades.extractionChance]);
 
-  const attack = useCallback((amount: number = player.dpc): { damage: number; isCrit: boolean } | void => {
+  const attack = useCallback((amount: number = player.dpc + (tanksCount * 2)): { damage: number; isCrit: boolean } | void => {
     if (extraction.active) return;
-    const isCrit = Math.random() < (0.1 + upgrades.criticalChance);
+    const isCrit = Math.random() < (0.1 + upgrades.criticalChance + (assassinsCount * 0.01));
     const finalDamage = (isCrit ? Math.floor(amount * (2.0 + upgrades.criticalMultiplier)) : amount) * upgrades.prestigeMultiplier;
 
     setEnemy(prev => {
       if (prev.hp <= 0) return prev;
       const newHp = Math.max(0, prev.hp - finalDamage);
       if (newHp === 0) {
-        // Update Codex
         setCodex(current => {
           const existing = current.find(e => e.name === prev.name);
           if (existing) return current.map(e => e.name === prev.name ? { ...e, count: e.count + 1 } : e);
@@ -166,11 +193,19 @@ export const useGameState = () => {
         });
         updateAchievement('kills_10', 1);
 
+        setDungeon(d => {
+          if (prev.rank === 'boss') return { ...d, currentFloor: d.currentFloor + 1, enemiesDefeated: 0 };
+          return { ...d, enemiesDefeated: d.enemiesDefeated + 1 };
+        });
+
         if (prev.rank !== 'normal') {
           if (extractionMode === 'manual') setExtraction({ active: true, attempts: 3, timeLeft: 10, targetEnemy: { ...prev, hp: 0 } });
           else if (extractionMode === 'auto') {
             const autoSuccess = Math.random() < (0.1 + upgrades.extractionChance);
-            if (autoSuccess) addShadow({ id: Math.random().toString(36).substr(2, 9), name: `Shadow ${prev.name}`, rank: prev.rank, dps: prev.level * 5 });
+            if (autoSuccess) {
+               const randomClass = SHADOW_CLASSES[Math.floor(Math.random() * SHADOW_CLASSES.length)];
+               addShadow({ id: Math.random().toString(36).substr(2, 9), name: `Shadow ${prev.name}`, rank: prev.rank, dps: prev.level * 5, class: randomClass });
+            }
           }
         }
         
@@ -195,21 +230,15 @@ export const useGameState = () => {
       return { ...prev, hp: newHp };
     });
     return { damage: finalDamage, isCrit };
-  }, [player.dpc, extraction.active, upgrades.criticalChance, upgrades.criticalMultiplier, upgrades.prestigeMultiplier, extractionMode, upgrades.extractionChance, addShadow, updateAchievement]);
+  }, [player.dpc, tanksCount, extraction.active, upgrades.criticalChance, upgrades.criticalMultiplier, upgrades.prestigeMultiplier, assassinsCount, extractionMode, upgrades.extractionChance, addShadow, updateAchievement]);
 
   const rebirth = useCallback(() => {
     if (player.level < 10) return;
     const gainedPoints = Math.floor(player.level / 10);
-    setPlayer(p => ({
-      ...INITIAL_PLAYER,
-      prestigePoints: p.prestigePoints + gainedPoints,
-      rebirths: p.rebirths + 1,
-    }));
-    setUpgrades(u => ({
-      ...INITIAL_UPGRADES,
-      prestigeMultiplier: 1.0 + ((player.prestigePoints + gainedPoints) * 0.1)
-    }));
+    setPlayer(p => ({ ...INITIAL_PLAYER, prestigePoints: p.prestigePoints + gainedPoints, rebirths: p.rebirths + 1 }));
+    setUpgrades(() => ({ ...INITIAL_UPGRADES, prestigeMultiplier: 1.0 + ((player.prestigePoints + gainedPoints) * 0.1) }));
     setArmy(INITIAL_ARMY);
+    setDungeon(INITIAL_DUNGEON);
     setEnemy(createEnemy(1));
   }, [player.level, player.prestigePoints]);
 
@@ -243,13 +272,16 @@ export const useGameState = () => {
       if (nextRankIndex >= rankOrder.length) return prev;
       const nextRank = rankOrder[nextRankIndex];
       const others = prev.filter(s => !identical.slice(0, 3).includes(s));
-      return [...others, { id: Math.random().toString(36).substr(2, 9), name, rank: nextRank, dps: identical[0].dps * 2.5 }];
+      return [...others, { id: Math.random().toString(36).substr(2, 9), name, rank: nextRank, dps: identical[0].dps * 2.5, class: identical[0].class }];
     });
   }, []);
 
   useEffect(() => {
-    if (!extraction.active && enemy.hp === 0) setEnemy(createEnemy(player.level));
-  }, [extraction.active, enemy.hp, player.level]);
+    if (!extraction.active && enemy.hp === 0) {
+      const shouldSpawnBoss = dungeon.enemiesDefeated >= dungeon.enemiesPerFloor;
+      setEnemy(createEnemy(player.level, shouldSpawnBoss));
+    }
+  }, [extraction.active, enemy.hp, player.level, dungeon.enemiesDefeated, dungeon.enemiesPerFloor]);
 
   useEffect(() => {
     if (totalDps <= 0) return;
@@ -258,7 +290,7 @@ export const useGameState = () => {
   }, [totalDps, attack]);
 
   return { 
-    player, enemy, army, extraction, extractionMode, upgrades, codex, achievements,
+    player, enemy, army, extraction, extractionMode, upgrades, codex, achievements, dungeon, classCounts, baseDps,
     setExtractionMode, attack, addShadow, attemptExtraction, buyUpgrade, mergeShadows, totalDps, rebirth
   };
 };

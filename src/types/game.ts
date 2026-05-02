@@ -1,12 +1,14 @@
 // src/types/game.ts
 export type Rank = 'normal' | 'elite' | 'knight' | 'general' | 'monarch' | 'boss';
 export type ExtractionMode = 'manual' | 'auto' | 'none';
+export type ShadowClass = 'infantry' | 'tank' | 'mage' | 'assassin';
 
 export interface Shadow {
   id: string;
   name: string;
   rank: Rank;
   dps: number;
+  class: ShadowClass;
 }
 
 export interface Enemy {
@@ -18,13 +20,19 @@ export interface Enemy {
   maxHp: number;
 }
 
+export interface DungeonState {
+  currentFloor: number;
+  enemiesDefeated: number;
+  enemiesPerFloor: number;
+}
+
 export interface Player {
   level: number;
   exp: number;
   maxExp: number;
   mana: number;
-  dpc: number; // Damage Per Click
-  dps: number; // Damage Per Second
+  dpc: number;
+  dps: number;
   prestigePoints: number;
   rebirths: number;
 }
@@ -70,4 +78,5 @@ export interface GameState {
   upgrades: Upgrades;
   codex: CodexEntry[];
   achievements: Achievement[];
+  dungeon: DungeonState;
 }

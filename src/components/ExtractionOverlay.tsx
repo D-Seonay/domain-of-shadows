@@ -1,5 +1,7 @@
 import { motion } from 'framer-motion';
 import { ExtractionState } from '../types/game';
+import { soundManager } from '../utils/SoundManager';
+import { useEffect } from 'react';
 
 export const ExtractionOverlay = ({ 
   state, 
@@ -8,9 +10,16 @@ export const ExtractionOverlay = ({
   state: ExtractionState; 
   onAttempt: () => void 
 }) => {
+  useEffect(() => {
+    if (state.active) {
+      soundManager.playExtraction();
+    }
+  }, [state.active]);
+
   if (!state.active) return null;
 
   const handleSyncClick = () => {
+    soundManager.playHit();
     onAttempt();
   };
 
