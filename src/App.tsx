@@ -1,12 +1,13 @@
 import { useGameState } from './hooks/useGameState';
 import { EnemyHUD } from './components/EnemyHUD';
-import { Sword, FlaskConical } from 'lucide-react';
+import { Sword, FlaskConical, RefreshCw } from 'lucide-react';
 import { ExtractionOverlay } from './components/ExtractionOverlay';
 import { ShadowInventory } from './components/ShadowInventory';
 import { UpgradeShop } from './components/UpgradeShop';
 import { DebugTools } from './components/DebugTools';
 import { NotificationSystem, Notification } from './components/NotificationSystem';
 import { SkillBar } from './components/SkillBar';
+import { PortalSelection } from './components/PortalSelection';
 import { useSkills } from './hooks/useSkills';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useCallback, useEffect, useRef } from 'react';
@@ -23,7 +24,8 @@ interface DamagePopup {
 export default function App() {
   const { 
     player, enemy, army, extraction, extractionMode, upgrades, dungeon, classCounts,
-    setExtractionMode, attack, addShadow, attemptExtraction, buyUpgrade, mergeShadows, totalDps 
+    activePortal, availablePortals, selectPortal,
+    setExtractionMode, attack, addShadow, attemptExtraction, buyUpgrade, mergeShadows, totalDps, rebirth 
   } = useGameState();
 
   const [popups, setPopups] = useState<DamagePopup[]>([]);
@@ -41,7 +43,12 @@ export default function App() {
 
   const handleAttackRef = useRef<(amount?: number, x?: number, y?: number) => void>(() => {});
 
-  const { cooldowns, activeBuffs, triggerSkill } = useSkills(player, enemy, (amt) => handleAttackRef.current(amt));
+  const { cooldowns, activeBuffs, triggerSkill } = useSkills(
+    player, 
+    enemy, 
+    (amt) => handleAttackRef.current(amt),
+    activePortal?.biome.modifier?.type === 'cd_increase' ? activePortal.biome.modifier.value : 0
+  );
 
   const handleAttack = useCallback((amount?: number, x?: number, y?: number) => {
     let finalAmount = amount || (player.dpc + (classCounts['tank'] || 0) * 2);
@@ -102,8 +109,13 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [triggerSkill]);
 
+  const themeColor = activePortal?.biome.color || '#a855f7';
+
   return (
-    <div className={`min-h-screen flex bg-zinc-950 text-zinc-100 overflow-hidden font-mono selection:bg-shadow/30 ${isShaking ? 'animate-shake' : ''}`}>
+    <div 
+      className={`min-h-screen flex bg-zinc-950 text-zinc-100 overflow-hidden font-mono selection:bg-shadow/30 ${isShaking ? 'animate-shake' : ''}`}
+      style={{ '--color-shadow': themeColor } as React.CSSProperties}
+    >
       <ShadowInventory army={army} onMerge={handleMerge} classCounts={classCounts} totalDps={totalDps} />
 
       <main className="flex-1 p-12 flex flex-col items-center justify-center gap-20 relative border-x border-zinc-900/50">
@@ -113,6 +125,11 @@ export default function App() {
           <div className="text-3xl font-black italic text-shadow leading-none tracking-tighter">
             {totalDps.toLocaleString()}
           </div>
+          {activePortal?.biome.modifier?.type === 'dps_reduction' && (
+            <div className="text-[8px] text-red-500 uppercase font-bold italic tracking-widest mt-1">
+              // BIOME INTERFERENCE: -{(activePortal.biome.modifier.value * 100).toFixed(0)}% DPS
+            </div>
+          )}
         </div>
 
         <div className="fixed top-12 right-12 text-right flex flex-col items-end gap-3 border-r border-zinc-800 pr-4 py-2 z-30">
@@ -156,42 +173,68 @@ export default function App() {
                 </span>
               </button>
             </div>
+
+            <button 
+              onClick={() => rebirth()}
+              className="w-48 flex items-center gap-3 px-6 py-3 border bg-transparent text-zinc-100 border-zinc-800 hover:border-shadow transition-all duration-500 group"
+            >
+              <RefreshCw className="w-4 h-4 transition-transform duration-500 group-hover:rotate-180 text-shadow" />
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] italic">
+                // SYSTEM REBIRTH
+              </span>
+            </button>
           </div>
         </div>
 
         <div className="w-full max-w-2xl flex flex-col items-center gap-16">
-          <EnemyHUD enemy={enemy} />
+          {activePortal ? (
+            <>
+              <div className="text-center flex flex-col items-center gap-2">
+                <div className="text-[10px] text-shadow uppercase font-black tracking-[0.4em] italic animate-pulse">
+                  // CURRENT DIMENSION: {activePortal.biome.name}
+                </div>
+                {activePortal.biome.modifier && (
+                   <div className="text-[9px] text-zinc-600 uppercase font-bold italic tracking-widest">
+                      [ MODIFIER: {activePortal.biome.modifier.type.replace('_', ' ')} (+{(activePortal.biome.modifier.value * 100).toFixed(0)}%) ]
+                   </div>
+                )}
+              </div>
+              <EnemyHUD enemy={enemy} />
 
-          <div className="relative">
-            <button 
-              onClick={(e) => handleAttack(undefined, e.clientX, e.clientY)}
-              disabled={extraction.active}
-              className="group relative flex items-center justify-center w-64 h-64 border border-zinc-900 hover:border-zinc-700 active:border-zinc-100 transition-all duration-300 disabled:opacity-20 disabled:cursor-not-allowed"
-            >
-              <Sword className="w-16 h-16 text-zinc-900 group-hover:text-zinc-100 group-active:scale-95 transition-all duration-300" />
-              <div className="absolute inset-0 bg-zinc-100/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-              
-              <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-zinc-800" />
-              <div className="absolute top-0 right-0 w-2 h-2 border-t border-r border-zinc-800" />
-              <div className="absolute bottom-0 left-0 w-2 h-2 border-b border-l border-zinc-800" />
-              <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-zinc-800" />
-            </button>
-
-            <AnimatePresence>
-              {popups.map(popup => (
-                <motion.div
-                  key={popup.id}
-                  initial={{ opacity: 1, scale: popup.isCrit ? 1.5 : 1, y: popup.y - 100, x: popup.x - 20 }}
-                  animate={{ opacity: 0, scale: popup.isCrit ? 2 : 1, y: popup.y - 250 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.8, ease: "easeOut" }}
-                  className={`fixed pointer-events-none font-black italic z-50 mix-blend-difference ${popup.isCrit ? 'text-4xl text-shadow' : 'text-2xl text-zinc-100'}`}
+              <div className="relative">
+                <button 
+                  onClick={(e) => handleAttack(undefined, e.clientX, e.clientY)}
+                  disabled={extraction.active}
+                  className="group relative flex items-center justify-center w-64 h-64 border border-zinc-900 hover:border-zinc-700 active:border-zinc-100 transition-all duration-300 disabled:opacity-20 disabled:cursor-not-allowed"
                 >
-                  -{Math.floor(popup.value)}{popup.isCrit ? '!' : ''}
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          </div>
+                  <Sword className="w-16 h-16 text-zinc-900 group-hover:text-zinc-100 group-active:scale-95 transition-all duration-300" />
+                  <div className="absolute inset-0 bg-zinc-100/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  
+                  <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-zinc-800" />
+                  <div className="absolute top-0 right-0 w-2 h-2 border-t border-r border-zinc-800" />
+                  <div className="absolute bottom-0 left-0 w-2 h-2 border-b border-l border-zinc-800" />
+                  <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-zinc-800" />
+                </button>
+
+                <AnimatePresence>
+                  {popups.map(popup => (
+                    <motion.div
+                      key={popup.id}
+                      initial={{ opacity: 1, scale: popup.isCrit ? 1.5 : 1, y: popup.y - 100, x: popup.x - 20 }}
+                      animate={{ opacity: 0, scale: popup.isCrit ? 2 : 1, y: popup.y - 250 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.8, ease: "easeOut" }}
+                      className={`fixed pointer-events-none font-black italic z-50 mix-blend-difference ${popup.isCrit ? 'text-4xl text-shadow' : 'text-2xl text-zinc-100'}`}
+                    >
+                      -{Math.floor(popup.value)}{popup.isCrit ? '!' : ''}
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              </div>
+            </>
+          ) : (
+            <PortalSelection portals={availablePortals} onSelect={selectPortal} />
+          )}
         </div>
 
         <div className="fixed bottom-32 left-1/2 -translate-x-1/2">

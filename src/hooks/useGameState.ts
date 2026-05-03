@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Enemy, Player, Shadow, ExtractionState, Upgrades, Rank, ExtractionMode, CodexEntry, Achievement, DungeonState, ShadowClass } from '../types/game';
+import { Enemy, Player, Shadow, ExtractionState, Upgrades, Rank, ExtractionMode, CodexEntry, Achievement, DungeonState, ShadowClass, BiomeType, Biome, Portal } from '../types/game';
 
 const INITIAL_PLAYER: Player = {
   level: 1,
@@ -41,6 +41,36 @@ const INITIAL_ACHIEVEMENTS: Achievement[] = [
   { id: 'level_10', title: 'Ascension', description: 'Reach level 10', requirement: 10, current: 1, completed: false, rewardType: 'mana', rewardAmount: 2000 },
 ];
 
+export const BIOMES: Record<BiomeType, Biome> = {
+  frost: {
+    type: 'frost',
+    name: 'Frost Realm',
+    color: '#06b6d4', // Cyan 500
+    monsters: ['Ice Elf', 'Frost Bear', 'Snow Wraith'],
+    modifier: { type: 'cd_increase', value: 0.2 }
+  },
+  fire: {
+    type: 'fire',
+    name: 'Hellish Depths',
+    color: '#f97316', // Orange 500
+    monsters: ['Cerberus', 'High Orc', 'Fire Demon'],
+    modifier: { type: 'dps_reduction', value: 0.15 }
+  },
+  void: {
+    type: 'void',
+    name: 'The Void',
+    color: '#a855f7', // Purple 500
+    monsters: ['Void Knight', 'Void Stalker', 'Dark Eye'],
+    modifier: { type: 'mana_boost', value: 0.5 }
+  },
+  shadow: {
+    type: 'shadow',
+    name: 'Shadow Sanctum',
+    color: '#6366f1', // Indigo 500
+    monsters: ['Blood Red Igris', 'Iron Knight', 'Shadow Soldier'],
+  }
+};
+
 const MONSTERS: { name: string; ranks: Rank[] }[] = [
   { name: 'Shadow Soldier', ranks: ['normal'] },
   { name: 'Iron Knight', ranks: ['normal', 'elite'] },
@@ -50,12 +80,18 @@ const MONSTERS: { name: string; ranks: Rank[] }[] = [
   { name: 'Blood Red Igris', ranks: ['boss'] },
 ];
 
-const createEnemy = (playerLevel: number, forceBoss: boolean = false): Enemy => {
+const createEnemy = (playerLevel: number, forceBoss: boolean = false, activePortal: Portal | null = null): Enemy => {
+  const biomeMonsters = activePortal ? activePortal.biome.monsters : [];
+  
   const monsterList = forceBoss 
     ? MONSTERS.filter(m => m.ranks.includes('boss'))
     : MONSTERS;
   
-  const monster = monsterList[Math.floor(Math.random() * monsterList.length)];
+  // Try to pick a monster from the biome if it matches the current rank requirement
+  const availableMonsters = monsterList.filter(m => biomeMonsters.includes(m.name) || !activePortal);
+  const finalMonsterList = availableMonsters.length > 0 ? availableMonsters : monsterList;
+
+  const monster = finalMonsterList[Math.floor(Math.random() * finalMonsterList.length)];
   const rank = forceBoss ? 'boss' : monster.ranks[Math.floor(Math.random() * monster.ranks.length)];
   
   let multiplier = 1;
@@ -74,6 +110,22 @@ const createEnemy = (playerLevel: number, forceBoss: boolean = false): Enemy => 
   };
 };
 
+const generatePortals = (difficulty: number): Portal[] => {
+  const types: BiomeType[] = ['frost', 'fire', 'void', 'shadow'];
+  const ranks: Portal['rank'][] = ['blue', 'red', 's'];
+  
+  return Array.from({ length: 3 }).map(() => {
+    const type = types[Math.floor(Math.random() * types.length)];
+    const rank = ranks[Math.floor(Math.random() * ranks.length)];
+    return {
+      id: Math.random().toString(36).substr(2, 9),
+      rank,
+      biome: BIOMES[type],
+      difficulty: difficulty + (rank === 's' ? 5 : rank === 'red' ? 2 : 0)
+    };
+  });
+};
+
 export const useGameState = () => {
   const [player, setPlayer] = useState<Player>(() => {
     const saved = localStorage.getItem('shadow_player');
@@ -87,7 +139,15 @@ export const useGameState = () => {
     const saved = localStorage.getItem('shadow_dungeon');
     return saved ? JSON.parse(saved) : INITIAL_DUNGEON;
   });
-  const [enemy, setEnemy] = useState<Enemy>(() => createEnemy(player?.level || 1));
+  const [activePortal, setActivePortal] = useState<Portal | null>(() => {
+    const saved = localStorage.getItem('shadow_active_portal');
+    return saved ? JSON.parse(saved) : null;
+  });
+  const [availablePortals, setAvailablePortals] = useState<Portal[]>(() => {
+    const saved = localStorage.getItem('shadow_available_portals');
+    return saved ? JSON.parse(saved) : generatePortals(1);
+  });
+  const [enemy, setEnemy] = useState<Enemy>(() => createEnemy(player?.level || 1, false, activePortal));
   const [army, setArmy] = useState<Shadow[]>(() => {
     const saved = localStorage.getItem('shadow_army');
     return saved ? JSON.parse(saved) : INITIAL_ARMY;
@@ -108,17 +168,16 @@ export const useGameState = () => {
 
   // Persistence
   useEffect(() => {
-    const saveToLocalStorage = () => {
-      localStorage.setItem('shadow_player', JSON.stringify(player));
-      localStorage.setItem('shadow_upgrades', JSON.stringify(upgrades));
-      localStorage.setItem('shadow_army', JSON.stringify(army));
-      localStorage.setItem('shadow_extraction_mode', extractionMode);
-      localStorage.setItem('shadow_codex', JSON.stringify(codex));
-      localStorage.setItem('shadow_achievements', JSON.stringify(achievements));
-      localStorage.setItem('shadow_dungeon', JSON.stringify(dungeon));
-    };
-    saveToLocalStorage();
-  }, [player, upgrades, army, extractionMode, codex, achievements, dungeon]);
+    localStorage.setItem('shadow_player', JSON.stringify(player));
+    localStorage.setItem('shadow_upgrades', JSON.stringify(upgrades));
+    localStorage.setItem('shadow_army', JSON.stringify(army));
+    localStorage.setItem('shadow_extraction_mode', extractionMode);
+    localStorage.setItem('shadow_codex', JSON.stringify(codex));
+    localStorage.setItem('shadow_achievements', JSON.stringify(achievements));
+    localStorage.setItem('shadow_dungeon', JSON.stringify(dungeon));
+    localStorage.setItem('shadow_active_portal', JSON.stringify(activePortal));
+    localStorage.setItem('shadow_available_portals', JSON.stringify(availablePortals));
+  }, [player, upgrades, army, extractionMode, codex, achievements, dungeon, activePortal, availablePortals]);
 
   const classCounts = army.reduce((acc, s) => {
     acc[s.class] = (acc[s.class] || 0) + 1;
@@ -131,7 +190,13 @@ export const useGameState = () => {
 
   const codexDpsBonus = codex.reduce((acc, entry) => acc + (entry.count * 0.01), 1);
   const baseDps = army.reduce((acc, shadow) => acc + shadow.dps, 0);
-  const totalDps = baseDps * (1 + magesCount * 0.1) * upgrades.prestigeMultiplier * codexDpsBonus;
+  
+  let totalDps = baseDps * (1 + magesCount * 0.1) * upgrades.prestigeMultiplier * codexDpsBonus;
+  
+  // Apply biome modifier
+  if (activePortal?.biome.modifier?.type === 'dps_reduction') {
+    totalDps *= (1 - activePortal.biome.modifier.value);
+  }
 
   const updateAchievement = useCallback((id: string, amount: number, absolute = false) => {
     setAchievements(prev => prev.map(ach => {
@@ -152,6 +217,14 @@ export const useGameState = () => {
     setArmy(prev => [...prev, shadow]);
     updateAchievement('extract_5', 1);
   }, [updateAchievement]);
+
+  const selectPortal = useCallback((portalId: string) => {
+    const portal = availablePortals.find(p => p.id === portalId);
+    if (portal) {
+      setActivePortal(portal);
+      setEnemy(createEnemy(player.level, false, portal));
+    }
+  }, [availablePortals, player.level]);
 
   const attemptExtraction = useCallback((target?: Enemy) => {
     const success = Math.random() < (0.2 + upgrades.extractionChance);
@@ -178,7 +251,7 @@ export const useGameState = () => {
   }, [extraction.targetEnemy, addShadow, upgrades.extractionChance]);
 
   const attack = useCallback((amount: number = player.dpc + (tanksCount * 2)): { damage: number; isCrit: boolean } | void => {
-    if (extraction.active) return;
+    if (extraction.active || !activePortal) return;
     const isCrit = Math.random() < (0.1 + upgrades.criticalChance + (assassinsCount * 0.01));
     const finalDamage = (isCrit ? Math.floor(amount * (2.0 + upgrades.criticalMultiplier)) : amount) * upgrades.prestigeMultiplier;
 
@@ -193,10 +266,19 @@ export const useGameState = () => {
         });
         updateAchievement('kills_10', 1);
 
+        let portalCleared = false;
         setDungeon(d => {
-          if (prev.rank === 'boss') return { ...d, currentFloor: d.currentFloor + 1, enemiesDefeated: 0 };
+          if (prev.rank === 'boss') {
+            portalCleared = true;
+            return { ...d, currentFloor: d.currentFloor + 1, enemiesDefeated: 0 };
+          }
           return { ...d, enemiesDefeated: d.enemiesDefeated + 1 };
         });
+
+        if (portalCleared) {
+          setActivePortal(null);
+          setAvailablePortals(generatePortals(dungeon.currentFloor + 1));
+        }
 
         if (prev.rank !== 'normal') {
           if (extractionMode === 'manual') setExtraction({ active: true, attempts: 3, timeLeft: 10, targetEnemy: { ...prev, hp: 0 } });
@@ -210,12 +292,17 @@ export const useGameState = () => {
         }
         
         setPlayer(p => {
+          let manaMult = 1;
+          if (activePortal?.biome.modifier?.type === 'mana_boost') {
+            manaMult += activePortal.biome.modifier.value;
+          }
+
           const expGain = (prev.level * 20) * (prev.rank === 'boss' ? 5 : prev.rank === 'elite' ? 2 : 1);
           let newExp = p.exp + expGain;
           let newLevel = p.level;
           let newMaxExp = p.maxExp;
           let newDpc = p.dpc;
-          const manaGain = prev.level * 10;
+          const manaGain = Math.floor(prev.level * 10 * manaMult);
           if (newExp >= p.maxExp) {
             newLevel += 1;
             newExp = newExp - p.maxExp;
@@ -230,7 +317,7 @@ export const useGameState = () => {
       return { ...prev, hp: newHp };
     });
     return { damage: finalDamage, isCrit };
-  }, [player.dpc, tanksCount, extraction.active, upgrades.criticalChance, upgrades.criticalMultiplier, upgrades.prestigeMultiplier, assassinsCount, extractionMode, upgrades.extractionChance, addShadow, updateAchievement]);
+  }, [player.dpc, tanksCount, extraction.active, activePortal, upgrades.criticalChance, upgrades.criticalMultiplier, upgrades.prestigeMultiplier, assassinsCount, extractionMode, upgrades.extractionChance, addShadow, updateAchievement, dungeon.currentFloor]);
 
   const rebirth = useCallback(() => {
     if (player.level < 10) return;
@@ -239,6 +326,8 @@ export const useGameState = () => {
     setUpgrades(() => ({ ...INITIAL_UPGRADES, prestigeMultiplier: 1.0 + ((player.prestigePoints + gainedPoints) * 0.1) }));
     setArmy(INITIAL_ARMY);
     setDungeon(INITIAL_DUNGEON);
+    setActivePortal(null);
+    setAvailablePortals(generatePortals(1));
     setEnemy(createEnemy(1));
   }, [player.level, player.prestigePoints]);
 
@@ -277,11 +366,11 @@ export const useGameState = () => {
   }, []);
 
   useEffect(() => {
-    if (!extraction.active && enemy.hp === 0) {
+    if (!extraction.active && enemy.hp === 0 && activePortal) {
       const shouldSpawnBoss = dungeon.enemiesDefeated >= dungeon.enemiesPerFloor;
-      setEnemy(createEnemy(player.level, shouldSpawnBoss));
+      setEnemy(createEnemy(player.level, shouldSpawnBoss, activePortal));
     }
-  }, [extraction.active, enemy.hp, player.level, dungeon.enemiesDefeated, dungeon.enemiesPerFloor]);
+  }, [extraction.active, enemy.hp, player.level, dungeon.enemiesDefeated, dungeon.enemiesPerFloor, activePortal]);
 
   useEffect(() => {
     if (totalDps <= 0) return;
@@ -291,6 +380,7 @@ export const useGameState = () => {
 
   return { 
     player, enemy, army, extraction, extractionMode, upgrades, codex, achievements, dungeon, classCounts, baseDps,
+    activePortal, availablePortals, selectPortal,
     setExtractionMode, attack, addShadow, attemptExtraction, buyUpgrade, mergeShadows, totalDps, rebirth
   };
 };

@@ -2,6 +2,25 @@
 export type Rank = 'normal' | 'elite' | 'knight' | 'general' | 'monarch' | 'boss';
 export type ExtractionMode = 'manual' | 'auto' | 'none';
 export type ShadowClass = 'infantry' | 'tank' | 'mage' | 'assassin';
+export type BiomeType = 'frost' | 'fire' | 'void' | 'shadow';
+
+export interface Biome {
+  type: BiomeType;
+  name: string;
+  color: string; // Tailwind hex or class
+  monsters: string[];
+  modifier?: {
+    type: 'dps_reduction' | 'cd_increase' | 'mana_boost';
+    value: number;
+  };
+}
+
+export interface Portal {
+  id: string;
+  rank: 'blue' | 'red' | 's';
+  biome: Biome;
+  difficulty: number;
+}
 
 export interface Shadow {
   id: string;
@@ -79,4 +98,6 @@ export interface GameState {
   codex: CodexEntry[];
   achievements: Achievement[];
   dungeon: DungeonState;
+  activePortal: Portal | null;
+  availablePortals: Portal[];
 }
