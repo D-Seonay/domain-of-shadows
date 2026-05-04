@@ -110,6 +110,16 @@ export const PortalSelection = ({
                 ) : (
                   <div className="text-[9px] text-zinc-700 italic">// NO ENVIRONMENTAL MODIFIERS DETECTED</div>
                 )}
+
+                {portal.affixes.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {portal.affixes.map(affix => (
+                      <div key={affix.id} className="px-2 py-0.5 bg-zinc-900/50 border border-zinc-800/50 text-[7px] text-zinc-500 font-bold uppercase italic tracking-tighter">
+                        {affix.name}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Enter Button */}

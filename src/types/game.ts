@@ -18,9 +18,11 @@ export interface Biome {
 export type PortalRank = 'E' | 'D' | 'C' | 'B' | 'A' | 'S';
 
 export interface PortalAffix {
+  id: string;
   name: string;
   description: string;
-  effect: (stats: any) => any;
+  type: 'hp_boost' | 'dmg_boost' | 'mana_drain' | 'dps_reduction';
+  value: number;
 }
 
 export interface Portal {

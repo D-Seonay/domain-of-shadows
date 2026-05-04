@@ -9,6 +9,7 @@ import { NotificationSystem, Notification } from './components/NotificationSyste
 import { SkillBar } from './components/SkillBar';
 import { PortalSelection } from './components/PortalSelection';
 import { PortalRadar } from './components/PortalRadar';
+import { RaidOverlay } from './components/RaidOverlay';
 import { useSkills } from './hooks/useSkills';
 import { usePortalScanner } from './hooks/usePortalScanner';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -286,6 +287,8 @@ export default function App() {
 
         <ExtractionOverlay state={extraction} onAttempt={attemptExtraction} />
         
+        <RaidOverlay activePortal={activePortal} dungeon={dungeon} />
+
         <AnimatePresence>
           {showShop && (
             <UpgradeShop 

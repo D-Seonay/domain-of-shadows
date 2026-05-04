@@ -80,6 +80,24 @@ const MONSTERS: { name: string; ranks: Rank[] }[] = [
   { name: 'Blood Red Igris', ranks: ['boss'] },
 ];
 
+const GET_ENEMIES_BY_RANK: Record<PortalRank, number> = {
+  'E': 3,
+  'D': 5,
+  'C': 8,
+  'B': 12,
+  'A': 18,
+  'S': 25,
+};
+
+const RANK_HP_MULTIPLIER: Record<PortalRank, number> = {
+  'E': 0.8,
+  'D': 1.0,
+  'C': 1.5,
+  'B': 2.5,
+  'A': 5.0,
+  'S': 10.0,
+};
+
 const createEnemy = (playerLevel: number, forceBoss: boolean = false, activePortal: Portal | null = null): Enemy => {
   const biomeMonsters = activePortal ? activePortal.biome.monsters : [];
   
@@ -91,15 +109,30 @@ const createEnemy = (playerLevel: number, forceBoss: boolean = false, activePort
   const availableMonsters = monsterList.filter(m => biomeMonsters.includes(m.name) || !activePortal);
   const finalMonsterList = availableMonsters.length > 0 ? availableMonsters : monsterList;
 
-  const monster = finalMonsterList[Math.floor(Math.random() * finalMonsterList.length)];
+  const monster = forceBoss && activePortal 
+    ? { name: activePortal.bossName, ranks: ['boss'] as Rank[] }
+    : finalMonsterList[Math.floor(Math.random() * finalMonsterList.length)];
+
   const rank = forceBoss ? 'boss' : monster.ranks[Math.floor(Math.random() * monster.ranks.length)];
   
   let multiplier = 1;
   if (rank === 'elite') multiplier = 5; 
   if (rank === 'boss') multiplier = 25; 
 
-  const maxHp = (100 + playerLevel * 50 + Math.pow(playerLevel, 2.2)) * multiplier;
+  // Apply Portal Rank Multiplier
+  if (activePortal) {
+    multiplier *= RANK_HP_MULTIPLIER[activePortal.rank];
+  }
+
+  let maxHp = (100 + playerLevel * 50 + Math.pow(playerLevel, 2.2)) * multiplier;
   
+  // Apply Affixes
+  if (activePortal) {
+    activePortal.affixes.forEach(affix => {
+      if (affix.type === 'hp_boost') maxHp *= (1 + affix.value);
+    });
+  }
+
   return {
     id: Math.random().toString(36).substr(2, 9),
     name: monster.name,
@@ -114,11 +147,32 @@ const generatePortals = (difficulty: number): Portal[] => {
   const types: BiomeType[] = ['frost', 'fire', 'void', 'shadow'];
   const ranks: PortalRank[] = ['E', 'D', 'C', 'B', 'A', 'S'];
   
+  const possibleAffixes: Omit<PortalAffix, 'id'>[] = [
+    { name: 'Hardened', description: 'Enemies have 50% more HP', type: 'hp_boost', value: 0.5 },
+    { name: 'Savage', description: 'Enemies deal 30% more damage', type: 'dmg_boost', value: 0.3 },
+    { name: 'Interference', description: 'Your Army DPS is reduced by 20%', type: 'dps_reduction', value: 0.2 },
+    { name: 'Mana Leak', description: 'Mana gain reduced by 40%', type: 'mana_drain', value: 0.4 },
+  ];
+
   return Array.from({ length: 3 }).map(() => {
     const type = types[Math.floor(Math.random() * types.length)];
     const rank = ranks[Math.floor(Math.random() * ranks.length)];
     const biome = BIOMES[type];
     
+    // Generate affixes based on rank
+    const affixCount = rank === 'S' ? 3 : rank === 'A' ? 2 : rank === 'B' ? 1 : 0;
+    const affixes: PortalAffix[] = [];
+    const shuffledAffixes = [...possibleAffixes].sort(() => 0.5 - Math.random());
+    
+    for (let i = 0; i < affixCount; i++) {
+      if (shuffledAffixes[i]) {
+        affixes.push({
+          ...shuffledAffixes[i],
+          id: Math.random().toString(36).substr(2, 9)
+        });
+      }
+    }
+
     return {
       id: Math.random().toString(36).substr(2, 9),
       rank,
@@ -129,7 +183,7 @@ const generatePortals = (difficulty: number): Portal[] => {
       bossName: biome.monsters[biome.monsters.length - 1],
       instability: 0,
       maxInstability: 300,
-      affixes: [],
+      affixes,
       cleared: false,
       position: { x: Math.random(), y: Math.random() }
     };
@@ -210,6 +264,15 @@ export const useGameState = () => {
     totalDps *= (1 - activePortal.biome.modifier.value);
   }
 
+  // Apply Affixes to DPS
+  if (activePortal) {
+    activePortal.affixes.forEach(affix => {
+      if (affix.type === 'dps_reduction') {
+        totalDps *= (1 - affix.value);
+      }
+    });
+  }
+
   const updateAchievement = useCallback((id: string, amount: number, absolute = false) => {
     setAchievements(prev => prev.map(ach => {
       if (ach.id === id && !ach.completed) {
@@ -239,6 +302,11 @@ export const useGameState = () => {
       setActivePortal(portal);
       setEnemy(createEnemy(player.level, false, portal));
       setGameMode('raid');
+      setDungeon(d => ({ 
+        ...d, 
+        enemiesPerFloor: GET_ENEMIES_BY_RANK[portal.rank],
+        enemiesDefeated: 0 
+      }));
     }
   }, [availablePortals, player.level]);
 
@@ -284,7 +352,7 @@ export const useGameState = () => {
 
         let portalCleared = false;
         setDungeon(d => {
-          if (prev.rank === 'boss') {
+          if (prev.rank === 'boss' && activePortal) {
             portalCleared = true;
             return { ...d, currentFloor: d.currentFloor + 1, enemiesDefeated: 0 };
           }
@@ -293,6 +361,7 @@ export const useGameState = () => {
 
         if (portalCleared) {
           setActivePortal(null);
+          setGameMode('idle');
           setAvailablePortals(generatePortals(dungeon.currentFloor + 1));
         }
 
@@ -311,6 +380,15 @@ export const useGameState = () => {
           let manaMult = 1;
           if (activePortal?.biome.modifier?.type === 'mana_boost') {
             manaMult += activePortal.biome.modifier.value;
+          }
+
+          // Apply Affixes to Mana Gain
+          if (activePortal) {
+            activePortal.affixes.forEach(affix => {
+              if (affix.type === 'mana_drain') {
+                manaMult *= (1 - affix.value);
+              }
+            });
           }
 
           const expGain = (prev.level * 20) * (prev.rank === 'boss' ? 5 : prev.rank === 'elite' ? 2 : 1);
