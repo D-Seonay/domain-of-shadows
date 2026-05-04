@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Enemy, Player, Shadow, ExtractionState, Upgrades, Rank, ExtractionMode, CodexEntry, Achievement, DungeonState, ShadowClass, BiomeType, Biome, Portal } from '../types/game';
+import { Enemy, Player, Shadow, ExtractionState, Upgrades, Rank, ExtractionMode, CodexEntry, Achievement, DungeonState, ShadowClass, BiomeType, Biome, Portal, PortalRank } from '../types/game';
 
 const INITIAL_PLAYER: Player = {
   level: 1,
@@ -112,16 +112,26 @@ const createEnemy = (playerLevel: number, forceBoss: boolean = false, activePort
 
 const generatePortals = (difficulty: number): Portal[] => {
   const types: BiomeType[] = ['frost', 'fire', 'void', 'shadow'];
-  const ranks: Portal['rank'][] = ['blue', 'red', 's'];
+  const ranks: PortalRank[] = ['E', 'D', 'C', 'B', 'A', 'S'];
   
   return Array.from({ length: 3 }).map(() => {
     const type = types[Math.floor(Math.random() * types.length)];
     const rank = ranks[Math.floor(Math.random() * ranks.length)];
+    const biome = BIOMES[type];
+    
     return {
       id: Math.random().toString(36).substr(2, 9),
       rank,
-      biome: BIOMES[type],
-      difficulty: difficulty + (rank === 's' ? 5 : rank === 'red' ? 2 : 0)
+      name: `${biome.name} Gate`,
+      type: 'standard',
+      biome,
+      difficulty: difficulty + (rank === 'S' ? 10 : rank === 'A' ? 5 : 0),
+      bossName: biome.monsters[biome.monsters.length - 1],
+      instability: 0,
+      maxInstability: 300,
+      affixes: [],
+      cleared: false,
+      position: { x: Math.random(), y: Math.random() }
     };
   });
 };
@@ -139,6 +149,7 @@ export const useGameState = () => {
     const saved = localStorage.getItem('shadow_dungeon');
     return saved ? JSON.parse(saved) : INITIAL_DUNGEON;
   });
+  const [gameMode, setGameMode] = useState<'idle' | 'radar' | 'raid'>('idle');
   const [activePortal, setActivePortal] = useState<Portal | null>(() => {
     const saved = localStorage.getItem('shadow_active_portal');
     return saved ? JSON.parse(saved) : null;
@@ -177,7 +188,8 @@ export const useGameState = () => {
     localStorage.setItem('shadow_dungeon', JSON.stringify(dungeon));
     localStorage.setItem('shadow_active_portal', JSON.stringify(activePortal));
     localStorage.setItem('shadow_available_portals', JSON.stringify(availablePortals));
-  }, [player, upgrades, army, extractionMode, codex, achievements, dungeon, activePortal, availablePortals]);
+    localStorage.setItem('shadow_game_mode', gameMode);
+  }, [player, upgrades, army, extractionMode, codex, achievements, dungeon, activePortal, availablePortals, gameMode]);
 
   const classCounts = army.reduce((acc, s) => {
     acc[s.class] = (acc[s.class] || 0) + 1;
@@ -380,7 +392,7 @@ export const useGameState = () => {
 
   return { 
     player, enemy, army, extraction, extractionMode, upgrades, codex, achievements, dungeon, classCounts, baseDps,
-    activePortal, availablePortals, selectPortal,
+    activePortal, availablePortals, gameMode, selectPortal, setGameMode,
     setExtractionMode, attack, addShadow, attemptExtraction, buyUpgrade, mergeShadows, totalDps, rebirth
   };
 };

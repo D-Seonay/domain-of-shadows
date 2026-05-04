@@ -15,11 +15,27 @@ export interface Biome {
   };
 }
 
+export type PortalRank = 'E' | 'D' | 'C' | 'B' | 'A' | 'S';
+
+export interface PortalAffix {
+  name: string;
+  description: string;
+  effect: (stats: any) => any;
+}
+
 export interface Portal {
   id: string;
-  rank: 'blue' | 'red' | 's';
+  rank: PortalRank;
+  name: string;
+  type: string;
   biome: Biome;
   difficulty: number;
+  bossName: string;
+  instability: number; // current time
+  maxInstability: number; // initial time
+  affixes: PortalAffix[];
+  cleared: boolean;
+  position: { x: number; y: number }; // normalized 0-1 for radar
 }
 
 export interface Shadow {
@@ -94,6 +110,7 @@ export interface GameState {
   army: Shadow[];
   extraction: ExtractionState;
   extractionMode: ExtractionMode;
+  gameMode: 'idle' | 'radar' | 'raid';
   upgrades: Upgrades;
   codex: CodexEntry[];
   achievements: Achievement[];

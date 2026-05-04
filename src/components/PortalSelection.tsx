@@ -3,9 +3,12 @@ import { Portal } from '../types/game';
 import { Shield, Zap, Target, Sword, Mountain, Flame, Ghost, Sparkles } from 'lucide-react';
 
 const RANK_COLORS: Record<Portal['rank'], string> = {
-  blue: '#3b82f6',
-  red: '#ef4444',
-  s: '#facc15',
+  E: '#71717a',
+  D: '#22c55e',
+  C: '#3b82f6',
+  B: '#a855f7',
+  A: '#ef4444',
+  S: '#facc15',
 };
 
 const BIOME_ICONS: Record<string, any> = {
