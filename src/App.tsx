@@ -1,6 +1,6 @@
 import { useGameState } from './hooks/useGameState';
 import { EnemyHUD } from './components/EnemyHUD';
-import { Sword, FlaskConical, RefreshCw } from 'lucide-react';
+import { Sword, FlaskConical, RefreshCw, Radar } from 'lucide-react';
 import { ExtractionOverlay } from './components/ExtractionOverlay';
 import { ShadowInventory } from './components/ShadowInventory';
 import { UpgradeShop } from './components/UpgradeShop';
@@ -8,7 +8,9 @@ import { DebugTools } from './components/DebugTools';
 import { NotificationSystem, Notification } from './components/NotificationSystem';
 import { SkillBar } from './components/SkillBar';
 import { PortalSelection } from './components/PortalSelection';
+import { PortalRadar } from './components/PortalRadar';
 import { useSkills } from './hooks/useSkills';
+import { usePortalScanner } from './hooks/usePortalScanner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { ExtractionMode } from './types/game';
@@ -24,9 +26,17 @@ interface DamagePopup {
 export default function App() {
   const { 
     player, enemy, army, extraction, extractionMode, upgrades, dungeon, classCounts,
-    activePortal, availablePortals, selectPortal,
+    activePortal, availablePortals, gameMode, selectPortal, setGameMode,
     setExtractionMode, attack, addShadow, attemptExtraction, buyUpgrade, mergeShadows, totalDps, rebirth 
   } = useGameState();
+
+  const { portals: scannedPortals, scan } = usePortalScanner();
+
+  useEffect(() => {
+    if (gameMode === 'radar' && scannedPortals.length === 0) {
+      scan();
+    }
+  }, [gameMode, scannedPortals.length, scan]);
 
   const [popups, setPopups] = useState<DamagePopup[]>([]);
   const [isShaking, setIsShaking] = useState(false);
@@ -175,6 +185,16 @@ export default function App() {
             </div>
 
             <button 
+              onClick={() => setGameMode('radar')}
+              className="w-48 flex items-center gap-3 px-6 py-3 border bg-transparent text-zinc-100 border-zinc-800 hover:border-shadow transition-all duration-500 group"
+            >
+              <Radar className="w-4 h-4 transition-transform duration-500 group-hover:rotate-180 text-shadow" />
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] italic">
+                // PORTAL RADAR
+              </span>
+            </button>
+
+            <button 
               onClick={() => rebirth()}
               className="w-48 flex items-center gap-3 px-6 py-3 border bg-transparent text-zinc-100 border-zinc-800 hover:border-shadow transition-all duration-500 group"
             >
@@ -273,6 +293,17 @@ export default function App() {
               upgrades={upgrades} 
               onBuy={buyUpgrade} 
               onClose={() => setShowShop(false)} 
+            />
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {gameMode === 'radar' && (
+            <PortalRadar 
+              portals={scannedPortals}
+              onSelect={selectPortal}
+              onScan={scan}
+              onBack={() => setGameMode('idle')}
             />
           )}
         </AnimatePresence>

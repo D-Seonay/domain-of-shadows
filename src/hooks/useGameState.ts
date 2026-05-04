@@ -230,11 +230,15 @@ export const useGameState = () => {
     updateAchievement('extract_5', 1);
   }, [updateAchievement]);
 
-  const selectPortal = useCallback((portalId: string) => {
-    const portal = availablePortals.find(p => p.id === portalId);
+  const selectPortal = useCallback((portalOrId: string | Portal) => {
+    const portal = typeof portalOrId === 'string' 
+      ? availablePortals.find(p => p.id === portalOrId)
+      : portalOrId;
+
     if (portal) {
       setActivePortal(portal);
       setEnemy(createEnemy(player.level, false, portal));
+      setGameMode('raid');
     }
   }, [availablePortals, player.level]);
 
