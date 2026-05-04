@@ -1,11 +1,12 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Portal, DungeonState } from '../types/game';
-import { Shield, Zap, Droplets, Target } from 'lucide-react';
+import { Shield, Zap, Droplets, Target, Clock } from 'lucide-react';
 
 interface RaidOverlayProps {
   activePortal: Portal | null;
   dungeon: DungeonState;
+  raidTimeLeft: number;
 }
 
 const AFFIX_ICONS: Record<string, React.ReactNode> = {
@@ -15,10 +16,16 @@ const AFFIX_ICONS: Record<string, React.ReactNode> = {
   dps_reduction: <Target className="w-3 h-3 text-red-400" />,
 };
 
-export const RaidOverlay: React.FC<RaidOverlayProps> = ({ activePortal, dungeon }) => {
+export const RaidOverlay: React.FC<RaidOverlayProps> = ({ activePortal, dungeon, raidTimeLeft }) => {
   if (!activePortal) return null;
 
   const isBossWave = dungeon.enemiesDefeated >= dungeon.enemiesPerFloor;
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
 
   return (
     <motion.div 
@@ -28,8 +35,14 @@ export const RaidOverlay: React.FC<RaidOverlayProps> = ({ activePortal, dungeon 
       className="fixed top-24 left-1/2 -translate-x-1/2 z-40 flex flex-col items-center gap-4 pointer-events-none"
     >
       <div className="flex flex-col items-center gap-1">
-        <div className="text-[10px] text-shadow uppercase font-black tracking-[0.4em] italic animate-pulse">
-          // RAID IN PROGRESS //
+        <div className="flex items-center gap-3">
+          <div className="text-[10px] text-shadow uppercase font-black tracking-[0.4em] italic animate-pulse">
+            // RAID IN PROGRESS //
+          </div>
+          <div className={`flex items-center gap-1 px-2 py-0.5 border text-[10px] font-bold ${raidTimeLeft < 30 ? 'border-red-500 text-red-500 animate-pulse' : 'border-zinc-800 text-zinc-500'}`}>
+            <Clock className="w-3 h-3" />
+            {formatTime(raidTimeLeft)}
+          </div>
         </div>
         <div className="flex items-baseline gap-2">
           <div className="text-4xl font-black italic text-zinc-100 tracking-tighter">

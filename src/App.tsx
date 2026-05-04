@@ -27,7 +27,7 @@ interface DamagePopup {
 export default function App() {
   const { 
     player, enemy, army, extraction, extractionMode, upgrades, dungeon, classCounts,
-    activePortal, availablePortals, gameMode, selectPortal, setGameMode,
+    activePortal, availablePortals, gameMode, raidTimeLeft, selectPortal, setGameMode,
     setExtractionMode, attack, addShadow, attemptExtraction, buyUpgrade, mergeShadows, totalDps, rebirth 
   } = useGameState();
 
@@ -287,7 +287,7 @@ export default function App() {
 
         <ExtractionOverlay state={extraction} onAttempt={attemptExtraction} />
         
-        <RaidOverlay activePortal={activePortal} dungeon={dungeon} />
+        <RaidOverlay activePortal={activePortal} dungeon={dungeon} raidTimeLeft={raidTimeLeft} />
 
         <AnimatePresence>
           {showShop && (

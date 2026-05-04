@@ -72,6 +72,8 @@ export interface Player {
   dps: number;
   prestigePoints: number;
   rebirths: number;
+  dungeonHearts: number;
+  fatigue: { amount: number; endTime: number } | null;
 }
 
 export interface Upgrades {
@@ -119,4 +121,5 @@ export interface GameState {
   dungeon: DungeonState;
   activePortal: Portal | null;
   availablePortals: Portal[];
+  raidTimeLeft: number;
 }

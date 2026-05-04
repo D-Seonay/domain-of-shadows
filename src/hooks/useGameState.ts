@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Enemy, Player, Shadow, ExtractionState, Upgrades, Rank, ExtractionMode, CodexEntry, Achievement, DungeonState, ShadowClass, BiomeType, Biome, Portal, PortalRank } from '../types/game';
+import { Enemy, Player, Shadow, ExtractionState, Upgrades, Rank, ExtractionMode, CodexEntry, Achievement, DungeonState, ShadowClass, BiomeType, Biome, Portal, PortalRank, PortalAffix } from '../types/game';
 
 const INITIAL_PLAYER: Player = {
   level: 1,
@@ -10,6 +10,8 @@ const INITIAL_PLAYER: Player = {
   dps: 0,
   prestigePoints: 0,
   rebirths: 0,
+  dungeonHearts: 0,
+  fatigue: null,
 };
 
 const SHADOW_CLASSES: ShadowClass[] = ['infantry', 'tank', 'mage', 'assassin'];
@@ -96,6 +98,24 @@ const RANK_HP_MULTIPLIER: Record<PortalRank, number> = {
   'B': 2.5,
   'A': 5.0,
   'S': 10.0,
+};
+
+const GET_RAID_TIME: Record<PortalRank, number> = {
+  'E': 60,
+  'D': 90,
+  'C': 120,
+  'B': 180,
+  'A': 240,
+  'S': 300,
+};
+
+const GET_HEARTS_BY_RANK: Record<PortalRank, number> = {
+  'E': 1,
+  'D': 2,
+  'C': 4,
+  'B': 7,
+  'A': 12,
+  'S': 25,
 };
 
 const createEnemy = (playerLevel: number, forceBoss: boolean = false, activePortal: Portal | null = null): Enemy => {
@@ -230,6 +250,7 @@ export const useGameState = () => {
     const saved = localStorage.getItem('shadow_achievements');
     return saved ? JSON.parse(saved) : INITIAL_ACHIEVEMENTS;
   });
+  const [raidTimeLeft, setRaidTimeLeft] = useState<number>(0);
 
   // Persistence
   useEffect(() => {
@@ -259,6 +280,11 @@ export const useGameState = () => {
   
   let totalDps = baseDps * (1 + magesCount * 0.1) * upgrades.prestigeMultiplier * codexDpsBonus;
   
+  // Apply fatigue
+  if (player.fatigue && player.fatigue.endTime > Date.now()) {
+    totalDps *= (1 - player.fatigue.amount);
+  }
+
   // Apply biome modifier
   if (activePortal?.biome.modifier?.type === 'dps_reduction') {
     totalDps *= (1 - activePortal.biome.modifier.value);
@@ -302,6 +328,7 @@ export const useGameState = () => {
       setActivePortal(portal);
       setEnemy(createEnemy(player.level, false, portal));
       setGameMode('raid');
+      setRaidTimeLeft(GET_RAID_TIME[portal.rank]);
       setDungeon(d => ({ 
         ...d, 
         enemiesPerFloor: GET_ENEMIES_BY_RANK[portal.rank],
@@ -336,8 +363,14 @@ export const useGameState = () => {
 
   const attack = useCallback((amount: number = player.dpc + (tanksCount * 2)): { damage: number; isCrit: boolean } | void => {
     if (extraction.active || !activePortal) return;
+    
+    let finalAmount = amount;
+    if (player.fatigue && player.fatigue.endTime > Date.now()) {
+      finalAmount *= (1 - player.fatigue.amount);
+    }
+
     const isCrit = Math.random() < (0.1 + upgrades.criticalChance + (assassinsCount * 0.01));
-    const finalDamage = (isCrit ? Math.floor(amount * (2.0 + upgrades.criticalMultiplier)) : amount) * upgrades.prestigeMultiplier;
+    const finalDamage = (isCrit ? Math.floor(finalAmount * (2.0 + upgrades.criticalMultiplier)) : finalAmount) * upgrades.prestigeMultiplier;
 
     setEnemy(prev => {
       if (prev.hp <= 0) return prev;
@@ -359,7 +392,9 @@ export const useGameState = () => {
           return { ...d, enemiesDefeated: d.enemiesDefeated + 1 };
         });
 
-        if (portalCleared) {
+        if (portalCleared && activePortal) {
+          const heartsGained = GET_HEARTS_BY_RANK[activePortal.rank];
+          setPlayer(p => ({ ...p, dungeonHearts: p.dungeonHearts + heartsGained }));
           setActivePortal(null);
           setGameMode('idle');
           setAvailablePortals(generatePortals(dungeon.currentFloor + 1));
@@ -436,6 +471,29 @@ export const useGameState = () => {
     return () => clearInterval(timer);
   }, [extraction.active]);
 
+  useEffect(() => {
+    if (gameMode !== 'raid' || !activePortal) return;
+    
+    const timer = setInterval(() => {
+      setRaidTimeLeft(prev => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          // Raid Failure
+          setGameMode('idle');
+          setActivePortal(null);
+          setPlayer(p => ({
+            ...p,
+            fatigue: { amount: 0.5, endTime: Date.now() + 5 * 60 * 1000 }
+          }));
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    
+    return () => clearInterval(timer);
+  }, [gameMode, activePortal]);
+
   const buyUpgrade = useCallback((type: keyof Upgrades, cost: number, increment: number) => {
     setPlayer(p => {
       if (p.mana >= cost) {
@@ -474,7 +532,7 @@ export const useGameState = () => {
 
   return { 
     player, enemy, army, extraction, extractionMode, upgrades, codex, achievements, dungeon, classCounts, baseDps,
-    activePortal, availablePortals, gameMode, selectPortal, setGameMode,
+    activePortal, availablePortals, gameMode, raidTimeLeft, selectPortal, setGameMode,
     setExtractionMode, attack, addShadow, attemptExtraction, buyUpgrade, mergeShadows, totalDps, rebirth
   };
 };
